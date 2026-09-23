@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+    <path android:pathData="M0,0h400v240h-400z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:endX="400"
+                android:endY="240"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item android:color="#0E7490" android:offset="0.0" />
+                <item android:color="#06B6D4" android:offset="0.5" />
+                <item android:color="#67E8F9" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- River Water Waves -->
+    <path
+        android:fillColor="#0891B2"
+        android:pathData="M0,140 Q100,120 200,140 T400,140 L400,240 L0,240 Z" />
+    <path
+        android:fillColor="#0E7490"
+        android:pathData="M0,170 Q100,150 200,170 T400,170 L400,240 L0,240 Z" />
+    <path
+        android:fillColor="#155E75"
+        android:pathData="M0,200 Q100,185 200,200 T400,200 L400,240 L0,240 Z" />
+    <!-- Recycling Arrows in Center -->
+    <!-- Recycling Arrow 1 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M200,50 L220,70 L205,70 C205,95 185,115 160,115 L160,105 C180,105 195,90 195,70 L180,70 Z" />
+    <!-- Recycling Arrow 2 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M160,120 L140,100 L140,115 C115,115 95,95 95,70 L105,70 C105,90 120,105 140,105 L140,90 Z" />
+    <!-- Sparkling clean stars -->
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M310,60 L315,75 L330,80 L315,85 L310,100 L305,85 L290,80 L305,75 Z" />
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M90,70 L93,80 L103,83 L93,86 L90,96 L87,86 L77,83 L87,80 Z" />
+</vector>

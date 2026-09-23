@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Perfectly centered inside 66dp safe zone (Center at 54, 54, radius ~28dp) -->
+    <!-- Scale: 0.30x from 200x200 viewport centered at 54, 54 -->
+    <group
+        android:pivotX="100"
+        android:pivotY="100"
+        android:scaleX="0.29"
+        android:scaleY="0.29"
+        android:translateX="25"
+        android:translateY="25">
+
+        <!-- Outer Circular Ring (Emerald Green to Cyan) -->
+        <path
+            android:pathData="M100,20 C144.18,20 180,55.82 180,100 C180,144.18 144.18,180 100,180 C55.82,180 20,144.18 20,100 C20,55.82 55.82,20 100,20 Z"
+            android:strokeWidth="7"
+            android:strokeColor="#10B981" />
+
+        <!-- Nurturing Hand Silhouette (Cradling the sprout from underneath) -->
+        <path
+            android:pathData="M35,140 C48,125 65,115 88,118 C100,120 115,125 130,120 C140,116 150,122 153,130 C155,138 148,145 136,149 C115,156 95,158 75,155 C55,152 42,148 35,140 Z"
+            android:fillColor="#34D399" />
+
+        <!-- Upper Palm Arc & Wrist Accent -->
+        <path
+            android:pathData="M48,144 C60,132 80,126 102,128 C118,130 135,135 148,131 C151,130 152,133 150,136 C142,143 125,148 105,147 C85,146 65,148 48,144 Z"
+            android:fillColor="#A7F3D0" />
+
+        <!-- Central Sprout Stem -->
+        <path
+            android:pathData="M98,122 C96,102 98,82 102,68 C103,66 106,66 106,68 C104,85 103,105 102,122 Z"
+            android:fillColor="#059669" />
+
+        <!-- Left Sprout Leaf (Lower) -->
+        <path
+            android:pathData="M98,102 C82,104 68,96 66,82 C74,78 92,84 98,96 Z"
+            android:fillColor="#10B981" />
+
+        <!-- Left Sprout Leaf (Upper) -->
+        <path
+            android:pathData="M100,82 C88,72 82,56 86,46 C95,48 102,62 102,78 Z"
+            android:fillColor="#34D399" />
+
+        <!-- Center Top Leaf -->
+        <path
+            android:pathData="M101,66 C95,50 98,34 104,26 C110,34 112,50 106,66 Z"
+            android:fillColor="#059669" />
+
+        <!-- Dynamic Checkmark Leaf (Rising upwards, symbol of verified civic action & empowerment) -->
+        <path
+            android:pathData="M94,92 C100,94 106,86 112,74 C124,52 144,38 165,30 C154,45 136,66 122,86 C114,97 104,104 94,92 Z"
+            android:fillColor="#06B6D4" />
+
+        <!-- Right Side Lower Cyan Leaf -->
+        <path
+            android:pathData="M104,104 C116,98 132,94 144,100 C138,114 122,118 108,110 Z"
+            android:fillColor="#0284C7" />
+    </group>
+</vector>

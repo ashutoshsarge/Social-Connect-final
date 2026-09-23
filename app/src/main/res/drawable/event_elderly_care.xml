@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+    <path android:pathData="M0,0h400v240h-400z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:endX="400"
+                android:endY="240"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item android:color="#0F766E" android:offset="0.0" />
+                <item android:color="#0D9488" android:offset="0.5" />
+                <item android:color="#5EEAD4" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Warm Hearth / Caring Aura -->
+    <path
+        android:fillColor="#30FFFFFF"
+        android:pathData="M200,40 A70,70 0 1,0 200,180 A70,70 0 1,0 200,40" />
+    <!-- Holding Hands / Two Caring Hands -->
+    <!-- Hand 1 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M140,150 C140,110 180,100 200,130 C200,130 190,170 170,180 C155,185 140,175 140,150 Z" />
+    <!-- Hand 2 (Interlocking) -->
+    <path
+        android:fillColor="#CCFBF1"
+        android:pathData="M260,150 C260,110 220,100 200,130 C200,130 210,170 230,180 C245,185 260,175 260,150 Z" />
+    <!-- Heart above -->
+    <path
+        android:fillColor="#F43F5E"
+        android:pathData="M200,80 C195,70 180,72 180,85 C180,100 200,110 200,110 C200,110 220,100 220,85 C220,72 205,70 200,80 Z" />
+</vector>

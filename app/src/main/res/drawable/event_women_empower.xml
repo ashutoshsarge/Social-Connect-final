@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+    <path android:pathData="M0,0h400v240h-400z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:endX="400"
+                android:endY="240"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item android:color="#831843" android:offset="0.0" />
+                <item android:color="#BE185D" android:offset="0.5" />
+                <item android:color="#F472B6" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Empowerment Emblem: Lotus / Rising Star -->
+    <path
+        android:fillColor="#35FFFFFF"
+        android:pathData="M200,35 A75,75 0 1,0 200,185 A75,75 0 1,0 200,35" />
+    <!-- Lotus Center Petal -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M200,70 C190,95 190,135 200,165 C210,135 210,95 200,70 Z" />
+    <!-- Lotus Left Petal -->
+    <path
+        android:fillColor="#FCE7F3"
+        android:pathData="M200,165 C180,165 150,140 160,110 C170,95 185,120 200,165 Z" />
+    <!-- Lotus Right Petal -->
+    <path
+        android:fillColor="#FCE7F3"
+        android:pathData="M200,165 C220,165 250,140 240,110 C230,95 215,120 200,165 Z" />
+    <!-- Base Ribbon / Rising Arc -->
+    <path
+        android:fillColor="#FDF2F8"
+        android:pathData="M140,180 Q200,205 260,180 Q200,190 140,180 Z" />
+</vector>

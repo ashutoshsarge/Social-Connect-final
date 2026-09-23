@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+    <path android:pathData="M0,0h400v240h-400z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:endX="400"
+                android:endY="240"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item android:color="#7C2D12" android:offset="0.0" />
+                <item android:color="#EA580C" android:offset="0.5" />
+                <item android:color="#FDBA74" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Background circle glow -->
+    <path
+        android:fillColor="#35FFFFFF"
+        android:pathData="M200,40 A75,75 0 1,0 200,190 A75,75 0 1,0 200,40" />
+    <!-- Giant Loving Paw Print -->
+    <!-- Main Pad -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M200,120 C175,120 160,145 170,175 C180,200 220,200 230,175 C240,145 225,120 200,120 Z" />
+    <!-- Toe 1 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M155,95 A16,22 0 1,0 155,139 A16,22 0 1,0 155,95" />
+    <!-- Toe 2 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M185,75 A16,24 0 1,0 185,123 A16,24 0 1,0 185,75" />
+    <!-- Toe 3 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M215,75 A16,24 0 1,0 215,123 A16,24 0 1,0 215,75" />
+    <!-- Toe 4 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M245,95 A16,22 0 1,0 245,139 A16,22 0 1,0 245,95" />
+    <!-- Heart inside the pad -->
+    <path
+        android:fillColor="#EA580C"
+        android:pathData="M200,145 C195,138 185,138 180,145 C172,154 185,166 200,175 C215,166 228,154 220,145 C215,138 205,138 200,145 Z" />
+    <!-- Small paws in background -->
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M80,60 A8,10 0 1,0 80,80 A8,10 0 1,0 80,60" />
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M320,60 A8,10 0 1,0 320,80 A8,10 0 1,0 320,60" />
+</vector>

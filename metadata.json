@@ -1,0 +1,6 @@
+{
+  "name": "SocialConnect",
+  "description": "Connect. Volunteer. Make an Impact. Volunteer-matching platform connecting volunteers with verified NGOs, real-time event discovery, and community impact tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

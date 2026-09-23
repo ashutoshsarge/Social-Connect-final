@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+    <path android:pathData="M0,0h400v240h-400z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:endX="400"
+                android:endY="240"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item android:color="#881337" android:offset="0.0" />
+                <item android:color="#E11D48" android:offset="0.5" />
+                <item android:color="#FB7185" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Background Circle Shield -->
+    <path
+        android:fillColor="#35FFFFFF"
+        android:pathData="M200,30 A75,75 0 1,0 200,180 A75,75 0 1,0 200,30" />
+    <!-- White Medical Cross -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M185,55 L215,55 L215,85 L245,85 L245,115 L215,115 L215,145 L185,145 L185,115 L155,115 L155,85 L185,85 Z" />
+    <!-- Heartbeat / EKG Pulse Line across bottom -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:pathData="M30,195 L140,195 L155,160 L170,225 L190,140 L210,210 L225,185 L240,195 L370,195" />
+</vector>

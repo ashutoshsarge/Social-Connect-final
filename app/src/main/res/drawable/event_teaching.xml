@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+    <path android:pathData="M0,0h400v240h-400z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:endX="400"
+                android:endY="240"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item android:color="#1E3A8A" android:offset="0.0" />
+                <item android:color="#2563EB" android:offset="0.5" />
+                <item android:color="#60A5FA" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Blackboard / Chalkboard Frame -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M70,35 L330,35 L330,170 L70,170 Z" />
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M78,43 L322,43 L322,162 L78,162 Z" />
+    <!-- Chalk writing ABC & 123 & Math -->
+    <path
+        android:fillColor="#E2E8F0"
+        android:pathData="M110,75 L120,55 L130,75 Z M115,70 L125,70"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#93C5FD"
+        android:strokeWidth="2.5"
+        android:pathData="M150,55 L165,55 C175,55 175,65 165,65 C175,65 175,75 165,75 L150,75 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FDE047"
+        android:strokeWidth="2.5"
+        android:pathData="M200,55 C185,55 185,75 200,75" />
+    <!-- Open Book at bottom -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M200,165 L130,175 L130,225 L200,215 Z" />
+    <path
+        android:fillColor="#F1F5F9"
+        android:pathData="M200,165 L270,175 L270,225 L200,215 Z" />
+    <!-- Graduation Cap / Pencil Left -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M50,150 L60,130 L70,150 L65,220 L55,220 Z" />
+</vector>

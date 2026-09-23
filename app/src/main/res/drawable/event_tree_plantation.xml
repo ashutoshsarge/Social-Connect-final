@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+    <!-- Gradient Background -->
+    <path android:pathData="M0,0h400v240h-400z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:endX="400"
+                android:endY="240"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item android:color="#064E3B" android:offset="0.0" />
+                <item android:color="#047857" android:offset="0.5" />
+                <item android:color="#10B981" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Hills / Soil curves -->
+    <path
+        android:fillColor="#065F46"
+        android:pathData="M0,170 Q100,140 220,165 T400,160 L400,240 L0,240 Z" />
+    <path
+        android:fillColor="#047857"
+        android:pathData="M0,190 Q120,175 260,195 T400,185 L400,240 L0,240 Z" />
+    <!-- Sun / Glow -->
+    <path
+        android:fillColor="#40FEF08A"
+        android:pathData="M310,40 A45,45 0 1,0 310,130 A45,45 0 1,0 310,40" />
+    <path
+        android:fillColor="#80FDE047"
+        android:pathData="M310,55 A30,30 0 1,0 310,115 A30,30 0 1,0 310,55" />
+    <!-- Distant trees -->
+    <path
+        android:fillColor="#059669"
+        android:pathData="M70,165 L85,130 L100,165 Z M95,168 L110,135 L125,168 Z M280,160 L295,125 L310,160 Z" />
+    <!-- Main Big Tree Trunk -->
+    <path
+        android:fillColor="#78350F"
+        android:pathData="M192,150 L208,150 L204,210 L196,210 Z" />
+    <!-- Tree Foliage Canopy -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M200,60 C160,60 140,100 155,135 C170,165 230,165 245,135 C260,100 240,60 200,60 Z" />
+    <path
+        android:fillColor="#34D399"
+        android:pathData="M200,75 C175,75 160,105 170,125 C180,145 220,145 230,125 C240,105 225,75 200,75 Z" />
+    <!-- Saplings in foreground -->
+    <path
+        android:fillColor="#A7F3D0"
+        android:pathData="M60,190 C50,180 50,170 60,170 C70,170 70,180 60,190 Z M60,190 L60,205"
+        android:strokeColor="#047857"
+        android:strokeWidth="2" />
+    <path
+        android:fillColor="#A7F3D0"
+        android:pathData="M340,195 C330,185 330,175 340,175 C350,175 350,185 340,195 Z M340,195 L340,210"
+        android:strokeColor="#047857"
+        android:strokeWidth="2" />
+</vector>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+    <path android:pathData="M0,0h400v240h-400z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:endX="400"
+                android:endY="240"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item android:color="#4C1D95" android:offset="0.0" />
+                <item android:color="#7C3AED" android:offset="0.5" />
+                <item android:color="#A78BFA" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Night Stars & Moon -->
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M310,35 A30,30 0 1,0 330,85 A24,24 0 1,1 310,35" />
+    <path
+        android:fillColor="#E0E7FF"
+        android:pathData="M80,50 L83,56 L90,57 L85,62 L86,69 L80,65 L74,69 L75,62 L70,57 L77,56 Z M140,40 L142,45 L147,46 L143,50 L144,55 L140,52 L136,55 L137,50 L133,46 L138,45 Z" />
+    <!-- Folded Warm Blankets Stack -->
+    <!-- Blanket 1 (Bottom) -->
+    <path
+        android:fillColor="#581C87"
+        android:pathData="M110,180 C105,180 100,185 100,195 C100,205 105,210 110,210 L290,210 C295,210 300,205 300,195 C300,185 295,180 290,180 Z" />
+    <!-- Blanket 2 (Middle) -->
+    <path
+        android:fillColor="#6D28D9"
+        android:pathData="M120,150 C115,150 110,155 110,165 C110,175 115,180 120,180 L280,180 C285,180 290,175 290,165 C290,155 285,150 280,150 Z" />
+    <!-- Blanket 3 (Top) -->
+    <path
+        android:fillColor="#C4B5FD"
+        android:pathData="M130,120 C125,120 120,125 120,135 C120,145 125,150 130,150 L270,150 C275,150 280,145 280,135 C280,125 275,120 270,120 Z" />
+    <!-- Heart of warmth above -->
+    <path
+        android:fillColor="#F43F5E"
+        android:pathData="M200,75 C190,60 170,65 170,80 C170,100 200,115 200,115 C200,115 230,100 230,80 C230,65 210,60 200,75 Z" />
+</vector>

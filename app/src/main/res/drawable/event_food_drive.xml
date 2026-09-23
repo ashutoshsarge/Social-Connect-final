@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="240dp"
+    android:viewportWidth="400"
+    android:viewportHeight="240">
+    <path android:pathData="M0,0h400v240h-400z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:angle="135"
+                android:endX="400"
+                android:endY="240"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item android:color="#78350F" android:offset="0.0" />
+                <item android:color="#D97706" android:offset="0.5" />
+                <item android:color="#FBBF24" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Background glow -->
+    <path
+        android:fillColor="#30FFFFFF"
+        android:pathData="M200,30 A80,80 0 1,0 200,190 A80,80 0 1,0 200,30" />
+    <!-- Table Surface -->
+    <path
+        android:fillColor="#92400E"
+        android:pathData="M0,175 L400,175 L400,240 L0,240 Z" />
+    <path
+        android:fillColor="#78350F"
+        android:pathData="M0,185 L400,185 L400,240 L0,240 Z" />
+    <!-- Meal Bowl -->
+    <path
+        android:fillColor="#FEF3C7"
+        android:pathData="M140,140 C140,180 260,180 260,140 Z" />
+    <!-- Food / Warm Nutrition in Bowl -->
+    <path
+        android:fillColor="#B45309"
+        android:pathData="M145,140 C145,160 255,160 255,140 Z" />
+    <!-- Steam Swirls -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:pathData="M185,120 Q175,100 185,80 T175,55 M200,120 Q210,95 200,75 T210,50 M215,120 Q205,100 215,80" />
+    <!-- Grain / Apple Icon Left -->
+    <path
+        android:fillColor="#DC2626"
+        android:pathData="M90,150 A20,20 0 1,0 90,190 A20,20 0 1,0 90,150" />
+    <path
+        android:fillColor="#15803D"
+        android:pathData="M90,150 Q95,140 102,142"
+        android:strokeColor="#15803D"
+        android:strokeWidth="2" />
+    <!-- Bread / Bread Loaf Right -->
+    <path
+        android:fillColor="#FDE68A"
+        android:pathData="M290,150 C290,135 340,135 340,150 L340,175 L290,175 Z" />
+</vector>
