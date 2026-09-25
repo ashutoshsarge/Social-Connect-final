@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,17 +21,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -66,20 +68,82 @@ fun SocialProfileScreen(
     onFindDrive: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val skills = listOf("Teaching", "Photography", "Social Media", "Event Coordination", "First Aid")
+    val isNgoLeader = currentUser?.role == "NGO_LEADER"
 
-    val badges = listOf(
-        BadgeData("🏅", "Community Builder", "Attended 10+ community drives in Delhi", Color(0xFFFEF3C7)),
-        BadgeData("🌱", "Green Champion", "Planted over 50 native trees in Dwarka", Color(0xFFD1FAE5)),
-        BadgeData("📚", "Education Volunteer", "Taught 20+ hours with Udaan Foundation", Color(0xFFDBEAFE)),
-        BadgeData("⭐", "Weekend Volunteer", "Active 5 consecutive weekends in service", Color(0xFFFFEDD5))
-    )
+    val avatarUrl = if (isNgoLeader) {
+        "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=240&q=80"
+    } else {
+        null
+    }
 
-    val activities = listOf(
-        ActivityData("🌱", "Tree Plantation Drive 2026", "Dwarka Sector 10 Eco Park", "Sunday, Sep 13", "4 hrs logged"),
-        ActivityData("📚", "Teach & Inspire Weekend", "Najafgarh Community Center", "Saturday, Sep 12", "3 hrs logged"),
-        ActivityData("🍱", "Community Meal Distribution", "Janakpuri District Center", "Sunday, Aug 30", "5 hrs logged")
-    )
+    val displayName = if (isNgoLeader) {
+        currentUser?.fullName?.ifBlank { "Dr. Aarav Patel" } ?: "Dr. Aarav Patel"
+    } else {
+        currentUser?.fullName?.ifBlank { "Rahul Nile" } ?: "Rahul Nile"
+    }
+
+    val roleTitle = if (isNgoLeader) "Executive Director & NGO Leader" else "Verified Volunteer"
+    val orgTitle = if (isNgoLeader) "Green Delhi Foundation • Reg. #DL-NGO-8821" else (currentUser?.organization ?: "Delhi Youth Volunteers")
+    val emailText = if (isNgoLeader) (currentUser?.email ?: "aarav.patel@greendelhi.org") else (currentUser?.email ?: "rahulnile@gmail.com")
+    val phoneText = if (isNgoLeader) (currentUser?.phone ?: "+91 98112 34567") else (currentUser?.phone ?: "+91 98765 43210")
+    val locationText = if (isNgoLeader) "Connaught Place, Central Delhi" else "Delhi, India"
+    val memberStatusText = if (isNgoLeader) "NGO Founder & Leader" else "Active Member"
+
+    val bioText = if (isNgoLeader) {
+        "Executive Director at Green Delhi Foundation. Spearheading urban afforestation, Yamuna cleanup drives, and community empowerment initiatives. Mobilized 5,000+ changemakers across Delhi NCR since 2019."
+    } else {
+        "Passionate about education, environment and community development. Believer in grassroots action and active civic participation."
+    }
+
+    val statusPillText = if (isNgoLeader) {
+        "Organizing 3 upcoming weekend drives across Delhi NCR"
+    } else {
+        "Available this weekend for local drives"
+    }
+
+    val displayedCauses = if (isNgoLeader) {
+        listOf("Environment", "Clean Energy", "Riverfront Restoration", "Civic Action", "Youth Leadership")
+    } else {
+        if (userCauses.isNotEmpty()) userCauses else listOf("Environment", "Education", "Food Security", "Animal Care")
+    }
+
+    val skillsTitle = if (isNgoLeader) "Core Focus Areas" else "Skills & Capabilities"
+    val skills = if (isNgoLeader) {
+        listOf("Urban Afforestation", "Volunteer Mobilization", "Civic Policy", "Waste Management", "Youth Mentorship")
+    } else {
+        listOf("Teaching", "Photography", "Social Media", "Event Coordination", "First Aid")
+    }
+
+    val badges = if (isNgoLeader) {
+        listOf(
+            BadgeData("🏆", "Master Organizer", "Organized 30+ verified social drives in NCR", Color(0xFFFEF3C7)),
+            BadgeData("🌿", "Green Delhi Pioneer", "Led largest urban afforestation campaigns", Color(0xFFD1FAE5)),
+            BadgeData("🛡️", "FCRA & 80G Certified", "100% compliant, audited nonprofit partner", Color(0xFFDBEAFE)),
+            BadgeData("⭐", "Top Rated Partner", "98% volunteer satisfaction rating", Color(0xFFFFEDD5))
+        )
+    } else {
+        listOf(
+            BadgeData("🏅", "Community Builder", "Attended 10+ community drives in Delhi", Color(0xFFFEF3C7)),
+            BadgeData("🌱", "Green Champion", "Planted over 50 native trees in Dwarka", Color(0xFFD1FAE5)),
+            BadgeData("📚", "Education Volunteer", "Taught 20+ hours with Udaan Foundation", Color(0xFFDBEAFE)),
+            BadgeData("⭐", "Weekend Volunteer", "Active 5 consecutive weekends in service", Color(0xFFFFEDD5))
+        )
+    }
+
+    val activitiesTitle = if (isNgoLeader) "Drives Organized" else "Recent Volunteer Activity"
+    val activities = if (isNgoLeader) {
+        listOf(
+            ActivityData("🌱", "Dwarka Native Reforestation Drive", "Dwarka Sector 10 Eco Park", "Sunday, Oct 18", "68 Registered"),
+            ActivityData("🌊", "Clean Yamuna Riverfront Restoration", "Yamuna Ghat, Kashmere Gate", "Sunday, Sep 20", "120 Attended"),
+            ActivityData("🍱", "Winter Ration & Warm Meals Drive", "Janakpuri District Center", "Sunday, Aug 30", "85 Mobilized")
+        )
+    } else {
+        listOf(
+            ActivityData("🌱", "Tree Plantation Drive 2026", "Dwarka Sector 10 Eco Park", "Sunday, Sep 13", "4 hrs logged"),
+            ActivityData("📚", "Teach & Inspire Weekend", "Najafgarh Community Center", "Saturday, Sep 12", "3 hrs logged"),
+            ActivityData("🍱", "Community Meal Distribution", "Janakpuri District Center", "Sunday, Aug 30", "5 hrs logged")
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -90,7 +154,7 @@ fun SocialProfileScreen(
         item {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Profile Header Card (Website Screenshot 6)
+            // Profile Header Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -102,60 +166,117 @@ fun SocialProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Avatar with green status dot and user initials fallback
-                        val displayName = currentUser?.fullName?.ifBlank { "Diya Sarge" } ?: "Diya Sarge"
-                        val initials = displayName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").uppercase()
+                        // Profile Avatar / RN Logo with edit/preference button
                         Box {
-                            Box(
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFF064E3B), Color(0xFF059669), Color(0xFF10B981))
-                                        )
-                                    )
-                                    .border(2.dp, SocialGreen, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (initials.isNotEmpty()) initials else "VC",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                            if (isNgoLeader && !avatarUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = avatarUrl,
+                                    contentDescription = "Profile Photo of $displayName",
+                                    modifier = Modifier
+                                        .size(76.dp)
+                                        .clip(CircleShape)
+                                        .border(2.5.dp, SocialGreen, CircleShape),
+                                    contentScale = ContentScale.Crop
                                 )
+                            } else {
+                                // Crisp, distinctive RN monogram logo
+                                Box(
+                                    modifier = Modifier
+                                        .size(76.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(Color(0xFF064E3B), Color(0xFF059669), Color(0xFF10B981))
+                                            )
+                                        )
+                                        .border(2.5.dp, SocialGreen, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "RN",
+                                        fontSize = 26.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = 1.sp,
+                                        color = Color.White
+                                    )
+                                }
                             }
                             Box(
                                 modifier = Modifier
-                                    .size(16.dp)
+                                    .size(24.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF10B981))
+                                    .background(SocialGreen)
                                     .border(2.dp, Color.White, CircleShape)
                                     .align(Alignment.BottomEnd)
-                            )
+                                    .clickable { onOpenPreferences() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Profile",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
 
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = displayName,
-                                    fontSize = 19.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = SocialTextMain
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Verified Changemaker",
-                                    tint = SocialGreen,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                ) {
+                                    Text(
+                                        text = displayName,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SocialTextMain
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Verified Changemaker",
+                                        tint = SocialGreen,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+
+                                Surface(
+                                    onClick = onOpenPreferences,
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = SocialGreenUltraLight,
+                                    border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                                    modifier = Modifier.height(28.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = SocialGreenDark,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            "Edit",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = SocialGreenDark
+                                        )
+                                    }
+                                }
                             }
 
                             Text(
-                                text = if (currentUser?.role == "NGO_LEADER") "NGO Leader & Organizer" else "Verified Volunteer",
+                                text = roleTitle,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = SocialGreen
@@ -164,13 +285,46 @@ fun SocialProfileScreen(
                             Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
-                                text = currentUser?.email ?: "diyasarge@gmail.com",
+                                text = orgTitle,
                                 fontSize = 11.sp,
-                                color = SocialTextMuted
+                                fontWeight = FontWeight.Medium,
+                                color = SocialGreenDark
                             )
 
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = emailText,
+                                    fontSize = 11.sp,
+                                    color = SocialTextMuted
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFFDCFCE7)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Verified Email",
+                                            tint = SocialGreen,
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Text(
+                                            text = "Verified",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = SocialGreenDark
+                                        )
+                                    }
+                                }
+                            }
+
                             Text(
-                                text = currentUser?.phone ?: "+91 98765 43210",
+                                text = phoneText,
                                 fontSize = 11.sp,
                                 color = SocialTextMuted
                             )
@@ -185,11 +339,11 @@ fun SocialProfileScreen(
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
-                                Text(text = "Delhi, India", fontSize = 11.sp, color = SocialTextMuted)
+                                Text(text = locationText, fontSize = 11.sp, color = SocialTextMuted)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = "•", fontSize = 11.sp, color = SocialTextMuted)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Active Member", fontSize = 11.sp, color = SocialTextMuted)
+                                Text(text = memberStatusText, fontSize = 11.sp, color = SocialTextMuted)
                             }
                         }
                     }
@@ -197,7 +351,7 @@ fun SocialProfileScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
-                        text = "Passionate about education, environment and community development. Believer in grassroots action and active civic participation.",
+                        text = bioText,
                         fontSize = 13.sp,
                         color = SocialTextMuted,
                         lineHeight = 18.sp
@@ -222,7 +376,7 @@ fun SocialProfileScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Available this weekend for local drives",
+                                text = statusPillText,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = SocialGreenDark
@@ -237,53 +391,58 @@ fun SocialProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        OutlinedButton(
+                        Surface(
                             onClick = onOpenPreferences,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(42.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFF0F172A)
-                            )
+                                .height(46.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            color = SocialGreenUltraLight,
+                            border = BorderStroke(1.5.dp, Color(0xFFA7F3D0))
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = null,
-                                tint = SocialGreen,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                "Edit Preferences",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF0F172A)
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Profile & Preferences",
+                                    tint = SocialGreenDark,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Edit Profile",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SocialGreenDark
+                                )
+                            }
                         }
 
                         Button(
                             onClick = onFindDrive,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(42.dp),
-                            shape = RoundedCornerShape(10.dp),
+                                .height(46.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = SocialGreen,
                                 contentColor = Color.White
-                            )
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
+                                imageVector = if (isNgoLeader) Icons.Default.Explore else Icons.Default.Search,
+                                contentDescription = if (isNgoLeader) "Create Drive" else "Find Drives",
                                 tint = Color.White,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Find New Drive",
-                                fontSize = 12.sp,
+                                if (isNgoLeader) "+ Create Drive" else "Find Drives",
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
@@ -294,7 +453,7 @@ fun SocialProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Stats Ribbon (Website Screenshot 6)
+            // Stats Ribbon
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -307,16 +466,23 @@ fun SocialProfileScreen(
                         .padding(vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    ProfileStatItem(num = "12", label = "Drives Joined")
-                    ProfileStatItem(num = "${currentUser?.volunteerHours ?: 47}", label = "Volunteer Hours", isHighlight = true)
-                    ProfileStatItem(num = "6", label = "NGOs Supported")
-                    ProfileStatItem(num = "4", label = "Badges Earned")
+                    if (isNgoLeader) {
+                        ProfileStatItem(num = "34", label = "Drives Held")
+                        ProfileStatItem(num = "1,420", label = "Volunteers", isHighlight = true)
+                        ProfileStatItem(num = "4,850h", label = "Impact Hours")
+                        ProfileStatItem(num = "4.9 ★", label = "Rating")
+                    } else {
+                        ProfileStatItem(num = "12", label = "Drives Joined")
+                        ProfileStatItem(num = "${currentUser?.volunteerHours ?: 42}", label = "Volunteer Hours", isHighlight = true)
+                        ProfileStatItem(num = "6", label = "NGOs Supported")
+                        ProfileStatItem(num = "4", label = "Badges Earned")
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Causes I Care About
+            // Causes / Focus Areas
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -324,7 +490,7 @@ fun SocialProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Causes I Care About",
+                        text = if (isNgoLeader) "Focus Causes" else "Causes I Care About",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = SocialTextMain
@@ -334,7 +500,7 @@ fun SocialProfileScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        userCauses.forEach { cause ->
+                        displayedCauses.forEach { cause ->
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = SocialGreenUltraLight,
@@ -354,7 +520,7 @@ fun SocialProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Skills & Capabilities",
+                        text = skillsTitle,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = SocialTextMain
@@ -384,7 +550,7 @@ fun SocialProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Achievement Badges (Website Screenshot 7)
+            // Achievement Badges
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -392,7 +558,7 @@ fun SocialProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Achievement Badges",
+                        text = if (isNgoLeader) "Leadership & Organization Credentials" else "Achievement Badges",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = SocialTextMain
@@ -429,7 +595,7 @@ fun SocialProfileScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Recent Volunteer Activity",
+                        text = activitiesTitle,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = SocialTextMain
@@ -472,7 +638,7 @@ fun SocialProfileScreen(
                             )
                         }
                         if (idx < activities.size - 1) {
-                            Divider(
+                            HorizontalDivider(
                                 color = Color(0xFFF1F5F9),
                                 modifier = Modifier.padding(vertical = 10.dp)
                             )
@@ -497,7 +663,7 @@ fun SocialProfileScreen(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.ExitToApp,
+                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                     contentDescription = null,
                     tint = Color(0xFFDC2626),
                     modifier = Modifier.size(16.dp)

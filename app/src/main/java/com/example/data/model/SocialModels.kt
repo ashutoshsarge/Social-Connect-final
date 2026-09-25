@@ -16,6 +16,15 @@ fun getCategoryDrawable(category: String): Int {
     }
 }
 
+data class Changemaker(
+    val id: String,
+    val name: String,
+    val avatar: String = "",
+    val role: String = "Volunteer",
+    val badge: String = "Changemaker",
+    val registeredDate: String = "Sep 2026"
+)
+
 data class SocialEvent(
     val id: String,
     val title: String,
@@ -38,6 +47,7 @@ data class SocialEvent(
     val isJoined: Boolean = false,
     val isBookmarked: Boolean = false,
     val isWeekend: Boolean = true,
+    val registeredChangemakers: List<Changemaker> = emptyList(),
     val localDrawableRes: Int = getCategoryDrawable(category)
 )
 

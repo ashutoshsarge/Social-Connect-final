@@ -1,5 +1,6 @@
 package com.example.data.repository
 
+import com.example.data.model.Changemaker
 import com.example.data.model.SocialComment
 import com.example.data.model.SocialCompletedEvent
 import com.example.data.model.SocialEvent
@@ -31,14 +32,27 @@ class SocialConnectRepository {
     private val _notifications = MutableStateFlow(createInitialNotifications())
     val notifications: StateFlow<List<SocialNotificationItem>> = _notifications.asStateFlow()
 
-    fun toggleJoinEvent(eventId: String): String {
+    fun toggleJoinEvent(eventId: String, volunteerName: String = "Rahul Nile"): String {
         var resultMsg = ""
         _events.value = _events.value.map { event ->
             if (event.id == eventId) {
                 val newJoined = !event.isJoined
                 val newCount = if (newJoined) event.joinedCount + 1 else maxOf(0, event.joinedCount - 1)
                 resultMsg = if (newJoined) "Registered for \"${event.title}\"! See in My Events." else "Cancelled registration for \"${event.title}\""
-                event.copy(isJoined = newJoined, joinedCount = newCount)
+                val updatedChangemakers = if (newJoined) {
+                    val me = Changemaker(
+                        id = "user-me",
+                        name = volunteerName,
+                        avatar = if (volunteerName.contains("Rahul", ignoreCase = true)) "RN" else "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=80&q=80",
+                        role = "Verified Volunteer",
+                        badge = "Registered",
+                        registeredDate = "Just now"
+                    )
+                    listOf(me) + event.registeredChangemakers.filter { it.name != volunteerName }
+                } else {
+                    event.registeredChangemakers.filter { it.name != volunteerName }
+                }
+                event.copy(isJoined = newJoined, joinedCount = newCount, registeredChangemakers = updatedChangemakers)
             } else event
         }
         return resultMsg
@@ -66,12 +80,16 @@ class SocialConnectRepository {
         }
     }
 
-    fun addCommentToPost(postId: String, text: String, authorName: String = "Diya Sarge") {
+    fun addCommentToPost(postId: String, text: String, authorName: String = "Rahul Nile") {
         _posts.value = _posts.value.map { post ->
             if (post.id == postId) {
                 val newComment = SocialComment(
                     author = authorName,
-                    avatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80",
+                    avatar = if (authorName.contains("Patel", ignoreCase = true)) {
+                        "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=120&q=80"
+                    } else {
+                        "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=120&q=80"
+                    },
                     text = text,
                     time = "Just now"
                 )
@@ -80,7 +98,7 @@ class SocialConnectRepository {
         }
     }
 
-    fun publishPost(text: String, authorName: String = "Diya Sarge") {
+    fun publishPost(text: String, authorName: String = "Rahul Nile") {
         val newPost = SocialPost(
             id = "post-${System.currentTimeMillis()}",
             authorName = authorName,
@@ -208,7 +226,10 @@ class SocialConnectRepository {
                 ),
                 isJoined = true,
                 isBookmarked = false,
-                isWeekend = true
+                isWeekend = true,
+                registeredChangemakers = listOf(
+                    Changemaker("user-me", "Rahul Nile", "RN", "Verified Volunteer", "Eco Champion", "Yesterday")
+                ) + sampleChangemakers("Tree Planter", "Soil Specialist")
             ),
             SocialEvent(
                 id = "evt-2",
@@ -480,8 +501,195 @@ class SocialConnectRepository {
                 ),
                 isJoined = false,
                 isBookmarked = false,
-                isWeekend = true
+                isWeekend = true,
+                registeredChangemakers = sampleChangemakers("Caregiver Volunteer", "Seniors Ally")
+            ),
+            SocialEvent(
+                id = "evt-10",
+                title = "Solar Lantern Assembly & Rural Clean Energy",
+                ngoId = "ngo-1",
+                ngoName = "Green Delhi Foundation",
+                ngoLogo = "https://images.unsplash.com/photo-1579208575657-c595a05383b7?auto=format&fit=crop&w=120&q=80",
+                verified = true,
+                category = "Environment",
+                dateStr = "Saturday, Oct 17, 2026",
+                timeStr = "10:00 AM – 2:00 PM",
+                location = "Okhla Industrial Area Phase 2, South Delhi",
+                distanceKm = 7,
+                joinedCount = 18,
+                maxVolunteers = 30,
+                coverImg = "https://images.unsplash.com/photo-1508873696983-2df570464756?auto=format&fit=crop&w=800&q=80",
+                description = "Assemble portable solar-powered LED study lanterns for rural students in unelectrified peri-urban settlements. Learn basic circuit soldering with guidance from green energy engineers.",
+                whatYoullDo = listOf(
+                    "Assemble mini photovoltaic solar panels and rechargeable cells",
+                    "Test LED brightness, casing durability, and battery efficiency",
+                    "Pack instructional guides in Hindi and English"
+                ),
+                skillsNeeded = listOf(
+                    "Hands-on assembly curiosity",
+                    "Basic electronic safety awareness",
+                    "Teamwork & careful handling"
+                ),
+                whatToBring = listOf(
+                    "Valid photo ID",
+                    "Safety glasses (optional, provided on-site)"
+                ),
+                isJoined = false,
+                isBookmarked = false,
+                isWeekend = true,
+                registeredChangemakers = sampleChangemakers("Clean Tech Ally", "Solar Builder")
+            ),
+            SocialEvent(
+                id = "evt-11",
+                title = "Stray Animal Rescue & Winter Feeding Drive",
+                ngoId = "ngo-4",
+                ngoName = "Paws & Tails Welfare",
+                ngoLogo = "https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=120&q=80",
+                verified = true,
+                category = "Animal Welfare",
+                dateStr = "Sunday, Oct 18, 2026",
+                timeStr = "8:00 AM – 11:30 AM",
+                location = "Hauz Khas Village & Deer Park, South Delhi",
+                distanceKm = 5,
+                joinedCount = 22,
+                maxVolunteers = 35,
+                coverImg = "https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=800&q=80",
+                description = "Join animal caretakers to prepare and distribute high-protein meals for stray community dogs and cats. We will also inspect animals for seasonal wounds, apply antiseptic spray, and install reflective safety collars.",
+                whatYoullDo = listOf(
+                    "Mix boiled chicken, rice, and vitamin kibble portions",
+                    "Distribute meals at 8 designated neighborhood feeding stations",
+                    "Affix luminous reflective safety collars for night road safety",
+                    "Report sick or injured animals to the emergency mobile veterinary team"
+                ),
+                skillsNeeded = listOf(
+                    "Gentle demeanor around friendly street animals",
+                    "Basic handling comfort",
+                    "No fear of friendly dogs"
+                ),
+                whatToBring = listOf(
+                    "Clothes you don't mind getting dusty",
+                    "Hand towel & sanitizer",
+                    "Water bottle"
+                ),
+                isJoined = false,
+                isBookmarked = true,
+                isWeekend = true,
+                registeredChangemakers = sampleChangemakers("Paws Protector", "Animal Healer")
+            ),
+            SocialEvent(
+                id = "evt-12",
+                title = "Community Blood Donation & Free Health Camp",
+                ngoId = "ngo-3",
+                ngoName = "Care For All Foundation",
+                ngoLogo = "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=120&q=80",
+                verified = true,
+                category = "Healthcare",
+                dateStr = "Saturday, Oct 24, 2026",
+                timeStr = "9:00 AM – 1:30 PM",
+                location = "Red Cross Bhawan, Connaught Place, Central Delhi",
+                distanceKm = 9,
+                joinedCount = 28,
+                maxVolunteers = 40,
+                coverImg = "https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=800&q=80",
+                description = "Assist certified doctors and nurses in hosting a comprehensive community health camp. We are offering free vitals checks, blood sugar testing, and organizing a voluntary donor drive for thalassemic children.",
+                whatYoullDo = listOf(
+                    "Register donors and community walk-ins digitally",
+                    "Manage donor resting lounge with fruit juice and biscuits",
+                    "Guide senior citizens to blood pressure screening stations",
+                    "Distribute free hygiene packs"
+                ),
+                skillsNeeded = listOf(
+                    "Warm communication and active listening",
+                    "Patience and crowd guidance",
+                    "Medical students or first aiders welcomed"
+                ),
+                whatToBring = listOf(
+                    "Comfortable shoes",
+                    "Notebook & mobile phone"
+                ),
+                isJoined = false,
+                isBookmarked = false,
+                isWeekend = true,
+                registeredChangemakers = sampleChangemakers("Life Saver", "Health Hero")
+            ),
+            SocialEvent(
+                id = "evt-13",
+                title = "Girls Coding & STEM Mentorship Workshop",
+                ngoId = "ngo-2",
+                ngoName = "Udaan Education Foundation",
+                ngoLogo = "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=120&q=80",
+                verified = true,
+                category = "Education",
+                dateStr = "Sunday, Oct 25, 2026",
+                timeStr = "11:00 AM – 3:00 PM",
+                location = "Sector 62 Community Tech Lab, Noida",
+                distanceKm = 12,
+                joinedCount = 14,
+                maxVolunteers = 20,
+                coverImg = "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80",
+                description = "Empower young female high school students from underserved communities through practical coding skills, block programming, and inspiring career dialogues with women tech leaders.",
+                whatYoullDo = listOf(
+                    "Sit 1-on-1 with students to help them build their first interactive web page",
+                    "Debug basic HTML and Python syntax questions",
+                    "Share personal education and career stories to inspire confidence"
+                ),
+                skillsNeeded = listOf(
+                    "Basic coding knowledge (HTML/Python/Scratch)",
+                    "Friendly mentoring attitude",
+                    "Empathy and patience"
+                ),
+                whatToBring = listOf(
+                    "Personal laptop with charger (optional)",
+                    "Enthusiastic mentorship spirit"
+                ),
+                isJoined = false,
+                isBookmarked = false,
+                isWeekend = true,
+                registeredChangemakers = sampleChangemakers("Tech Mentor", "STEM Advocate")
+            ),
+            SocialEvent(
+                id = "evt-14",
+                title = "Night Shelter Warm Blanket & Hot Meal Distribution",
+                ngoId = "ngo-3",
+                ngoName = "Care For All Foundation",
+                ngoLogo = "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=120&q=80",
+                verified = true,
+                category = "Food Distribution",
+                dateStr = "Saturday, Oct 31, 2026",
+                timeStr = "6:30 PM – 9:30 PM",
+                location = "Old Delhi Railway Station Shelter Zone, Delhi",
+                distanceKm = 10,
+                joinedCount = 34,
+                maxVolunteers = 45,
+                coverImg = "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=800&q=80",
+                description = "As temperatures drop at night, volunteer teams will deliver high-quality thermal blankets, warm woollen socks, and freshly cooked vegetable khichdi to pavement dwellers and families at shelter transit zones.",
+                whatYoullDo = listOf(
+                    "Sort thermal blankets by size and pack into distribution bundles",
+                    "Serve fresh hot meals in compostable plates with warm tea",
+                    "Interact with shelter supervisors to note medical needs"
+                ),
+                skillsNeeded = listOf(
+                    "Night drive comfort",
+                    "Compassionate and respectful demeanor",
+                    "Team player"
+                ),
+                whatToBring = listOf(
+                    "Warm personal jacket / sweater",
+                    "Comfortable walking shoes"
+                ),
+                isJoined = false,
+                isBookmarked = false,
+                isWeekend = true,
+                registeredChangemakers = sampleChangemakers("Warmth Giver", "Compassion Star")
             )
+        )
+
+        private fun sampleChangemakers(badge1: String, badge2: String): List<Changemaker> = listOf(
+            Changemaker("cm-1", "Ananya Verma", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80", "Volunteer Coordinator", badge1, "2 days ago"),
+            Changemaker("cm-2", "Rohan Gupta", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80", "Youth Volunteer", badge2, "3 days ago"),
+            Changemaker("cm-3", "Priya Sharma", "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=80&q=80", "Active Changemaker", "Weekend Hero", "4 days ago"),
+            Changemaker("cm-4", "Vikram Mehta", "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80", "Logistics Volunteer", "Community Star", "5 days ago"),
+            Changemaker("cm-5", "Kavita Joshi", "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=80&q=80", "Grassroots Volunteer", "Eco Champion", "6 days ago")
         )
 
         private fun createInitialCompletedEvents(): List<SocialCompletedEvent> = listOf(
@@ -617,14 +825,14 @@ class SocialConnectRepository {
                 liked = false,
                 comments = listOf(
                     SocialComment(
-                        author = "Diya Sarge",
-                        avatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80",
+                        author = "Rahul Nile",
+                        avatar = "RN",
                         text = "Proud to be a part of this drive! The enthusiasm was unbelievable 🙌",
                         time = "2 hours ago"
                     ),
                     SocialComment(
                         author = "Ananya Verma",
-                        avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80",
+                        avatar = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80",
                         text = "Already looking forward to the tree maintenance checkup next week!",
                         time = "1 hour ago"
                     )
@@ -632,9 +840,9 @@ class SocialConnectRepository {
             ),
             SocialPost(
                 id = "post-2",
-                authorName = "Diya Sarge",
+                authorName = "Rahul Nile",
                 authorRole = "Volunteer",
-                authorAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80",
+                authorAvatar = "RN",
                 time = "Yesterday",
                 text = "Spent my Saturday morning teaching basic math and English puzzles to the kids at Udaan. Seeing a 9-year-old solve a riddle and light up with confidence is pure joy! If you have 2 hours to spare this weekend, please volunteer. 📚✨",
                 images = listOf(
@@ -645,8 +853,8 @@ class SocialConnectRepository {
                 comments = listOf(
                     SocialComment(
                         author = "Udaan Team",
-                        avatar = "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=80&q=80",
-                        text = "Thank you Diya! The kids love your storytelling sessions!",
+                        avatar = "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=80&q=80",
+                        text = "Thank you Rahul! The kids love your storytelling sessions!",
                         time = "Yesterday"
                     )
                 )
@@ -667,12 +875,14 @@ class SocialConnectRepository {
         )
 
         private fun createInitialRoster(): List<VolunteerRosterItem> = listOf(
-            VolunteerRosterItem("vol-1", "Diya Sarge", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80", "Photography, Fieldwork", "Sep 01, 2026", "Tree Plantation Drive 2026", "Registered", 4),
-            VolunteerRosterItem("vol-2", "Ananya Verma", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80", "Event Logistics", "Sep 02, 2026", "Tree Plantation Drive 2026", "Attended", 4),
+            VolunteerRosterItem("vol-1", "Rahul Nile", "RN", "Photography, Fieldwork", "Sep 01, 2026", "Tree Plantation Drive 2026", "Registered", 4),
+            VolunteerRosterItem("vol-2", "Ananya Verma", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80", "Event Logistics", "Sep 02, 2026", "Tree Plantation Drive 2026", "Attended", 4),
             VolunteerRosterItem("vol-3", "Vikram Mehta", "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80", "First Aid, Gardening", "Sep 03, 2026", "Tree Plantation Drive 2026", "Attended", 4),
-            VolunteerRosterItem("vol-4", "Pooja Roy", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80", "Social Media", "Sep 03, 2026", "Clean Yamuna Riverfront", "Registered", 0),
+            VolunteerRosterItem("vol-4", "Pooja Roy", "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=80&q=80", "Social Media", "Sep 03, 2026", "Clean Yamuna Riverfront", "Registered", 0),
             VolunteerRosterItem("vol-5", "Sameer Joshi", "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=80&q=80", "Crowd Coordination", "Aug 29, 2026", "Clean Yamuna Riverfront", "Registered", 0),
-            VolunteerRosterItem("vol-6", "Neha Saxena", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80", "Teaching, Mentoring", "Aug 20, 2026", "Pre-Monsoon Plantation", "Cancelled", 0)
+            VolunteerRosterItem("vol-6", "Neha Saxena", "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=80&q=80", "Teaching, Mentoring", "Aug 20, 2026", "Pre-Monsoon Plantation", "Cancelled", 0),
+            VolunteerRosterItem("vol-7", "Rohan Gupta", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80", "Field Operations", "Aug 15, 2026", "Tree Plantation Drive 2026", "Attended", 6),
+            VolunteerRosterItem("vol-8", "Priya Sharma", "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=80&q=80", "Youth Mentorship", "Aug 10, 2026", "Teach & Inspire Weekend", "Attended", 8)
         )
 
         private fun createInitialNotifications(): List<SocialNotificationItem> = listOf(

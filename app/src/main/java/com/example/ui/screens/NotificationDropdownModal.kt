@@ -18,7 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -101,7 +101,7 @@ fun NotificationDropdownModal(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Divider(color = Color(0xFFE2E8F0))
+                HorizontalDivider(color = Color(0xFFE2E8F0))
                 Spacer(modifier = Modifier.height(10.dp))
 
                 if (notifications.isEmpty()) {

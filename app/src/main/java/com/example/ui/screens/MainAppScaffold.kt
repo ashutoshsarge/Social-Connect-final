@@ -17,26 +17,26 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.automirrored.outlined.Assignment
+import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VolunteerActivism
-import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Business
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Explore
-import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
@@ -123,6 +123,8 @@ fun MainAppScaffold(
     val userCauses by viewModel.userCauses.collectAsState()
     val userLocation by viewModel.userLocation.collectAsState()
     val userDistance by viewModel.userMaxDistance.collectAsState()
+    val selectedDateFilter by viewModel.selectedDateFilter.collectAsState()
+    val searchGroundingState by viewModel.searchGroundingState.collectAsState()
 
     // Active bottom navigation tab
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Home/Dashboard, 1: Explore, 2: My Events, 3: Community, 4: NGOs, 5: Profile
@@ -239,7 +241,7 @@ fun MainAppScaffold(
                         Spacer(modifier = Modifier.width(4.dp))
 
                         // User Avatar with initials fallback
-                        val userDisplayName = currentUser?.fullName?.ifBlank { "Diya Sarge" } ?: "Diya Sarge"
+                        val userDisplayName = currentUser?.fullName?.ifBlank { "Rahul Nile" } ?: "Rahul Nile"
                         val initials = userDisplayName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").uppercase()
                         Box(
                             modifier = Modifier
@@ -255,7 +257,7 @@ fun MainAppScaffold(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (initials.isNotEmpty()) initials else "DS",
+                                text = if (initials.isNotEmpty()) initials else "RN",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -497,7 +499,7 @@ fun MainAppScaffold(
                         icon = {
                             Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = if (selectedTab == 1) Icons.Filled.Assignment else Icons.Outlined.Assignment,
+                                    imageVector = if (selectedTab == 1) Icons.AutoMirrored.Filled.Assignment else Icons.AutoMirrored.Outlined.Assignment,
                                     contentDescription = "Drives",
                                     modifier = Modifier.size(22.dp)
                                 )
@@ -532,7 +534,7 @@ fun MainAppScaffold(
                         icon = {
                             Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = if (selectedTab == 2) Icons.Filled.FactCheck else Icons.Outlined.FactCheck,
+                                    imageVector = if (selectedTab == 2) Icons.AutoMirrored.Filled.FactCheck else Icons.AutoMirrored.Outlined.FactCheck,
                                     contentDescription = "Roster",
                                     modifier = Modifier.size(22.dp)
                                 )
@@ -647,7 +649,7 @@ fun MainAppScaffold(
                             searchQuery = searchQuery,
                             sortMethod = sortMethod,
                             currentLocation = userLocation,
-                            userName = currentUser?.fullName ?: "Diya Sarge",
+                            userName = currentUser?.fullName ?: "Rahul Nile",
                             onCategorySelect = { viewModel.setCategory(it) },
                             onSearchChange = { viewModel.setSearchQuery(it) },
                             onSortChange = { viewModel.setSortMethod(it) },
@@ -677,8 +679,16 @@ fun MainAppScaffold(
                             events = filteredEvents,
                             selectedCategory = selectedCategory,
                             searchQuery = searchQuery,
+                            selectedLocation = userLocation,
+                            selectedDateFilter = selectedDateFilter,
+                            searchGroundingState = searchGroundingState,
+                            onPerformSearchGrounding = { viewModel.performGoogleSearchGrounding(it) },
+                            onClearSearchGrounding = { viewModel.clearSearchGrounding() },
                             onCategorySelect = { viewModel.setCategory(it) },
                             onSearchChange = { viewModel.setSearchQuery(it) },
+                            onLocationSelect = { viewModel.setLocation(it) },
+                            onDateSelect = { viewModel.setDateFilter(it) },
+                            onResetFilters = { viewModel.resetFilters() },
                             onSelectEvent = { selectedEventForDetail = it },
                             onToggleJoin = { viewModel.toggleJoinSocialEvent(it.id) },
                             onToggleBookmark = { viewModel.toggleBookmarkSocialEvent(it.id) }
@@ -689,8 +699,16 @@ fun MainAppScaffold(
                             events = filteredEvents,
                             selectedCategory = selectedCategory,
                             searchQuery = searchQuery,
+                            selectedLocation = userLocation,
+                            selectedDateFilter = selectedDateFilter,
+                            searchGroundingState = searchGroundingState,
+                            onPerformSearchGrounding = { viewModel.performGoogleSearchGrounding(it) },
+                            onClearSearchGrounding = { viewModel.clearSearchGrounding() },
                             onCategorySelect = { viewModel.setCategory(it) },
                             onSearchChange = { viewModel.setSearchQuery(it) },
+                            onLocationSelect = { viewModel.setLocation(it) },
+                            onDateSelect = { viewModel.setDateFilter(it) },
+                            onResetFilters = { viewModel.resetFilters() },
                             onSelectEvent = { selectedEventForDetail = it },
                             onToggleJoin = { /* NGOs don't join their own drives */ },
                             onToggleBookmark = { viewModel.toggleBookmarkSocialEvent(it.id) }
@@ -726,7 +744,7 @@ fun MainAppScaffold(
                 3 -> SocialCommunityScreen(
                     posts = posts,
                     ngos = ngos,
-                    userName = currentUser?.fullName ?: (if (portalRole == "VOLUNTEER") "Diya Sarge" else "Aarav Patel"),
+                    userName = currentUser?.fullName ?: (if (portalRole == "VOLUNTEER") "Rahul Nile" else "Aarav Patel"),
                     onToggleLike = { viewModel.togglePostLike(it) },
                     onAddComment = { id, text -> viewModel.addPostComment(id, text) },
                     onPublishPost = { viewModel.publishCommunityPost(it) },
@@ -760,7 +778,7 @@ fun MainAppScaffold(
     selectedCompletedForCert?.let { completed ->
         CertificateModal(
             event = completed,
-            volunteerName = currentUser?.fullName ?: "Diya Sarge",
+            volunteerName = currentUser?.fullName ?: "Rahul Nile",
             onDismiss = { selectedCompletedForCert = null }
         )
     }

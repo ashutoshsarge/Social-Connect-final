@@ -13,28 +13,38 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.screens.AuthScreen
+import com.example.ui.screens.EmailVerificationPendingScreen
 import com.example.ui.screens.MainAppScaffold
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AppViewModel
+import com.example.util.FirebaseInitHelper
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        FirebaseInitHelper.ensureInitialized(this)
         setContent {
             MyApplicationTheme {
                 val appViewModel: AppViewModel = viewModel()
                 val currentUser by appViewModel.currentUser.collectAsState()
+                val isVerificationPending by appViewModel.isEmailVerificationPending.collectAsState()
 
                 Surface(
                     modifier = Modifier
                         .fillMaxSize()
                         .safeDrawingPadding()
                 ) {
-                    if (currentUser == null) {
-                        AuthScreen(viewModel = appViewModel)
-                    } else {
-                        MainAppScaffold(viewModel = appViewModel)
+                    when {
+                        isVerificationPending -> {
+                            EmailVerificationPendingScreen(viewModel = appViewModel)
+                        }
+                        currentUser == null -> {
+                            AuthScreen(viewModel = appViewModel)
+                        }
+                        else -> {
+                            MainAppScaffold(viewModel = appViewModel)
+                        }
                     }
                 }
             }

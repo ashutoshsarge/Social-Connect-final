@@ -62,6 +62,36 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        override fun onOpen(db: SupportSQLiteDatabase) {
+            super.onOpen(db)
+            scope.launch(Dispatchers.IO) {
+                try {
+                    db.execSQL("UPDATE users SET fullName = 'Rahul Nile', email = 'rahulnile@gmail.com', passwordHash = 'seva123' WHERE id = 1 OR email = 'diyasarge@gmail.com' OR fullName = 'Diya Sarge'")
+                    db.execSQL("UPDATE users SET fullName = 'Dr. Aarav Patel', email = 'aarav.patel@greendelhi.org', organization = 'Green Delhi Foundation', volunteerHours = 340, badges = 'Master Organizer,Green Delhi Pioneer,FCRA & 80G Certified,Top Rated Partner', phone = '+91 98112 34567' WHERE id = 2 OR role = 'NGO_LEADER' OR email = 'aarav@goonj.org'")
+                    val cursor = db.query("SELECT COUNT(*) FROM users WHERE email = 'rahulnile@gmail.com'")
+                    var exists = false
+                    if (cursor.moveToFirst()) {
+                        exists = cursor.getInt(0) > 0
+                    }
+                    cursor.close()
+                    if (!exists) {
+                        db.execSQL("INSERT OR REPLACE INTO users (id, email, passwordHash, fullName, role, organization, volunteerHours, badges, phone) VALUES (1, 'rahulnile@gmail.com', 'seva123', 'Rahul Nile', 'VOLUNTEER', 'Delhi Youth Volunteers', 42, 'Eco Champion,Weekend Hero,7-Day Streak,Verified Volunteer', '+91 98765 43210')")
+                    }
+                    val ngoCursor = db.query("SELECT COUNT(*) FROM users WHERE role = 'NGO_LEADER'")
+                    var ngoExists = false
+                    if (ngoCursor.moveToFirst()) {
+                        ngoExists = ngoCursor.getInt(0) > 0
+                    }
+                    ngoCursor.close()
+                    if (!ngoExists) {
+                        db.execSQL("INSERT OR REPLACE INTO users (id, email, passwordHash, fullName, role, organization, volunteerHours, badges, phone) VALUES (2, 'aarav.patel@greendelhi.org', 'admin123', 'Dr. Aarav Patel', 'NGO_LEADER', 'Green Delhi Foundation', 340, 'Master Organizer,Green Delhi Pioneer,FCRA & 80G Certified,Top Rated Partner', '+91 98112 34567')")
+                    }
+                } catch (e: Exception) {
+                    // Ignore migration check failure
+                }
+            }
+        }
+
         private suspend fun populateInitialData(database: AppDatabase) {
             val userDao = database.userDao()
             val taskDao = database.taskDao()
@@ -70,12 +100,12 @@ abstract class AppDatabase : RoomDatabase() {
             if (userDao.getUserCount() > 0) return
 
             // Seed Users
-            val diyaId = userDao.insertUser(
+            val rahulNileId = userDao.insertUser(
                 UserEntity(
                     id = 1,
-                    email = "diyasarge@gmail.com",
+                    email = "rahulnile@gmail.com",
                     passwordHash = "seva123",
-                    fullName = "Diya Sarge",
+                    fullName = "Rahul Nile",
                     role = "VOLUNTEER",
                     organization = "Delhi Youth Volunteers",
                     volunteerHours = 42,
@@ -101,14 +131,14 @@ abstract class AppDatabase : RoomDatabase() {
             val aaravId = userDao.insertUser(
                 UserEntity(
                     id = 2,
-                    email = "aarav@goonj.org",
+                    email = "aarav.patel@greendelhi.org",
                     passwordHash = "admin123",
-                    fullName = "Aarav Patel",
+                    fullName = "Dr. Aarav Patel",
                     role = "NGO_LEADER",
-                    organization = "Goonj Seva Foundation",
-                    volunteerHours = 120,
-                    badges = "Community Leader,Master Organizer,500+ Hours",
-                    phone = "+91 98223 45678"
+                    organization = "Green Delhi Foundation",
+                    volunteerHours = 340,
+                    badges = "Master Organizer,Green Delhi Pioneer,FCRA & 80G Certified,Top Rated Partner",
+                    phone = "+91 98112 34567"
                 )
             )
 

@@ -56,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -352,7 +353,7 @@ fun SocialHomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Section Header
             Row(
@@ -381,7 +382,7 @@ fun SocialHomeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         if (events.isEmpty()) {
@@ -642,7 +643,84 @@ fun SocialEventCard(
                     trackColor = Color(0xFFF1F5F9)
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Registered Changemakers Preview Bar
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val changemakers = event.registeredChangemakers.ifEmpty {
+                                listOf(
+                                    com.example.data.model.Changemaker("1", "Ananya Verma", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80", "Volunteer", "Star", "Today"),
+                                    com.example.data.model.Changemaker("2", "Rohan Gupta", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80", "Volunteer", "Star", "Yesterday")
+                                )
+                            }
+                            Row {
+                                changemakers.take(3).forEachIndexed { idx, cm ->
+                                    if (cm.avatar == "RN" || !cm.avatar.startsWith("http")) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        listOf(Color(0xFF064E3B), Color(0xFF059669))
+                                                    )
+                                                )
+                                                .border(1.5.dp, Color.White, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "RN",
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    } else {
+                                        AsyncImage(
+                                            model = cm.avatar,
+                                            contentDescription = cm.name,
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .border(1.5.dp, Color.White, CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                    if (idx < 2) Spacer(modifier = Modifier.width((-6).dp))
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (event.isJoined) "You + ${event.joinedCount - 1} changemakers" else "${event.joinedCount} changemakers registered",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (event.isJoined) SocialGreen else SocialTextMain
+                            )
+                        }
+
+                        Text(
+                            text = "View All →",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SocialGreen
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Action Buttons
                 Row(

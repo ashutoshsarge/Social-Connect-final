@@ -19,19 +19,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -266,14 +267,36 @@ fun SocialCommunityScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        AsyncImage(
-                            model = post.authorAvatar,
-                            contentDescription = post.authorName,
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
+                        if (post.authorAvatar == "RN" || !post.authorAvatar.startsWith("http")) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFF064E3B), Color(0xFF059669))
+                                        )
+                                    )
+                                    .border(1.5.dp, SocialGreen, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "RN",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        } else {
+                            AsyncImage(
+                                model = post.authorAvatar,
+                                contentDescription = post.authorName,
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -345,7 +368,7 @@ fun SocialCommunityScreen(
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    Divider(color = Color(0xFFF1F5F9))
+                    HorizontalDivider(color = Color(0xFFF1F5F9))
                     Spacer(modifier = Modifier.height(6.dp))
 
                     // Action Icons Row
@@ -421,7 +444,7 @@ fun SocialCommunityScreen(
                     // Comments Section
                     if (showComments) {
                         Spacer(modifier = Modifier.height(10.dp))
-                        Divider(color = Color(0xFFE2E8F0))
+                        HorizontalDivider(color = Color(0xFFE2E8F0))
                         Spacer(modifier = Modifier.height(10.dp))
 
                         // Existing Comments
@@ -432,14 +455,35 @@ fun SocialCommunityScreen(
                                     .padding(vertical = 4.dp),
                                 verticalAlignment = Alignment.Top
                             ) {
-                                AsyncImage(
-                                    model = comment.avatar,
-                                    contentDescription = comment.author,
-                                    modifier = Modifier
-                                        .size(28.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
+                                if (comment.avatar == "RN" || !comment.avatar.startsWith("http")) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                Brush.linearGradient(
+                                                    listOf(Color(0xFF064E3B), Color(0xFF059669))
+                                                )
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "RN",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                } else {
+                                    AsyncImage(
+                                        model = comment.avatar,
+                                        contentDescription = comment.author,
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column(
                                     modifier = Modifier
@@ -509,7 +553,7 @@ fun SocialCommunityScreen(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Send,
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
                                     contentDescription = "Send",
                                     tint = SocialGreen
                                 )

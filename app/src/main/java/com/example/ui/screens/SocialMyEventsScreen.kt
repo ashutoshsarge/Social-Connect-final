@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.SocialCompletedEvent
 import com.example.data.model.SocialEvent
+import com.example.ui.components.SocialEventImage
 import com.example.ui.theme.SocialBgBody
 import com.example.ui.theme.SocialBlue
 import com.example.ui.theme.SocialGreen
@@ -255,15 +256,24 @@ fun UpcomingEventCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp)
             ) {
+                SocialEventImage(
+                    event = event,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                // Status pill over image
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFD1FAE5)
+                    color = Color.White.copy(alpha = 0.92f),
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .align(Alignment.TopStart)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -285,18 +295,27 @@ fun UpcomingEventCard(
                     }
                 }
 
-                Text(
-                    text = event.category,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = SocialTextMuted
-                )
+                // Category pill over image
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .align(Alignment.TopEnd)
+                ) {
+                    Text(
+                        text = event.category,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = event.title,
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = event.title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = SocialTextMain
@@ -394,6 +413,7 @@ fun UpcomingEventCard(
             }
         }
     }
+}
 }
 
 @Composable

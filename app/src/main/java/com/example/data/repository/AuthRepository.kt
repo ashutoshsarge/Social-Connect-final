@@ -13,9 +13,27 @@ class AuthRepository(private val userDao: UserDao) {
 
     fun getAllUsers(): Flow<List<UserEntity>> = userDao.getAllUsers()
 
-    suspend fun login(email: String, password: String):Result<UserEntity> {
-        val user = userDao.getUserByEmail(email.trim())
-            ?: return Result.failure(Exception("No account found with this email."))
+    suspend fun login(email: String, password: String): Result<UserEntity> {
+        var user = userDao.getUserByEmail(email.trim())
+        if (user == null && email.trim().equals("rahulnile@gmail.com", ignoreCase = true)) {
+            val rahul = UserEntity(
+                id = 1,
+                email = "rahulnile@gmail.com",
+                passwordHash = "seva123",
+                fullName = "Rahul Nile",
+                role = "VOLUNTEER",
+                organization = "Delhi Youth Volunteers",
+                volunteerHours = 42,
+                badges = "Eco Champion,Weekend Hero,7-Day Streak,Verified Volunteer",
+                phone = "+91 98765 43210"
+            )
+            userDao.insertUser(rahul)
+            user = rahul
+        }
+
+        if (user == null) {
+            return Result.failure(Exception("No account found with this email."))
+        }
 
         if (user.passwordHash != password.trim()) {
             return Result.failure(Exception("Invalid password. Please check your credentials."))
@@ -88,7 +106,7 @@ class AuthRepository(private val userDao: UserDao) {
         val newUser = UserEntity(
             email = if (isEmail) trimmed else "${trimmed.filter { it.isDigit() }}@volunteer.socialconnect.org",
             passwordHash = "otp_verified",
-            fullName = name.trim().ifBlank { "Diya Sarge" },
+            fullName = name.trim().ifBlank { "Rahul Nile" },
             role = role,
             organization = if (role == "NGO_LEADER") "Seva Foundation" else "Community Volunteer",
             phone = if (!isEmail) trimmed else phone.trim().ifBlank { "+91 98765 43210" },
@@ -102,6 +120,11 @@ class AuthRepository(private val userDao: UserDao) {
     }
 
     fun logout() {
+        try {
+            com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+        } catch (e: Exception) {
+            // Safe fallback if Firebase is not active
+        }
         _currentUser.value = null
     }
 

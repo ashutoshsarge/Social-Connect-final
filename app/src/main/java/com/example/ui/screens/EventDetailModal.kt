@@ -34,7 +34,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import com.example.data.model.Changemaker
 import com.example.data.model.SocialEvent
 import com.example.ui.components.SocialEventImage
 import com.example.ui.theme.SocialBlue
@@ -397,46 +399,190 @@ fun EventDetailModal(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Registered Changemakers preview
-                    Text(
-                        text = "Registered Changemakers",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SocialTextMain
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    // Registered Changemakers Section
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val sampleAvatars = listOf(
-                            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80",
-                            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80",
-                            "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80",
-                            "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80"
-                        )
-                        sampleAvatars.forEach { url ->
-                            AsyncImage(
-                                model = url,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .border(2.dp, Color.White, CircleShape),
-                                contentScale = ContentScale.Crop
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Registered Changemakers",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SocialTextMain
                             )
-                            Spacer(modifier = Modifier.width((-6).dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = SocialGreenUltraLight
+                            ) {
+                                Text(
+                                    text = "${event.joinedCount} Joined",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SocialGreen,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Text(
-                            text = "+${maxOf(0, event.joinedCount - 4)} other volunteers",
-                            fontSize = 13.sp,
-                            color = SocialTextMuted
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (event.isJoined) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = SocialGreenUltraLight,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFA7F3D0))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .background(SocialGreen),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "You are registered as a Changemaker!",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SocialGreen
+                                    )
+                                    Text(
+                                        text = "Logged in as Rahul Nile. Drive coordinator will reach out soon.",
+                                        fontSize = 11.sp,
+                                        color = SocialTextMuted
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    val changemakersToShow = event.registeredChangemakers.ifEmpty {
+                        listOf(
+                            Changemaker("cm-1", "Ananya Verma", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80", "Volunteer Coordinator", "Eco Champion", "2 days ago"),
+                            Changemaker("cm-2", "Rohan Gupta", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80", "Tech Volunteer", "Weekend Hero", "3 days ago"),
+                            Changemaker("cm-3", "Priya Sharma", "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=80&q=80", "Active Changemaker", "Community Star", "4 days ago"),
+                            Changemaker("cm-4", "Vikram Mehta", "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80", "Logistics Volunteer", "First Responder", "5 days ago")
                         )
                     }
 
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        changemakersToShow.forEach { changemaker ->
+                            val isCurrentUser = changemaker.name.contains("Rahul", ignoreCase = true)
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isCurrentUser) Color(0xFFF0FDF4) else Color(0xFFF8FAFC),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isCurrentUser) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (changemaker.avatar == "RN" || !changemaker.avatar.startsWith("http") || changemaker.name.contains("Rahul", ignoreCase = true)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        listOf(Color(0xFF064E3B), Color(0xFF059669))
+                                                    )
+                                                )
+                                                .border(1.5.dp, if (isCurrentUser) SocialGreen else Color.White, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "RN",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    } else {
+                                        AsyncImage(
+                                            model = changemaker.avatar,
+                                            contentDescription = changemaker.name,
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(CircleShape)
+                                                .border(1.5.dp, if (isCurrentUser) SocialGreen else Color.White, CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = changemaker.name,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = SocialTextMain
+                                            )
+                                            if (isCurrentUser) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = SocialGreen
+                                                ) {
+                                                    Text(
+                                                        text = "YOU",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = Color.White,
+                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = "${changemaker.role} • Registered ${changemaker.registeredDate}",
+                                            fontSize = 11.sp,
+                                            color = SocialTextMuted
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isCurrentUser) SocialGreenUltraLight else Color(0xFFEFF6FF)
+                                    ) {
+                                        Text(
+                                            text = changemaker.badge,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isCurrentUser) SocialGreen else Color(0xFF2563EB),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(24.dp))
-                    Divider(color = Color(0xFFE2E8F0))
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Buttons

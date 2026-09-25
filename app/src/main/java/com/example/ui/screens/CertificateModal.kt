@@ -26,7 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -171,7 +171,7 @@ fun CertificateModal(
                             color = SocialGreenDark,
                             fontStyle = FontStyle.Normal
                         )
-                        Divider(
+                        HorizontalDivider(
                             color = Color(0xFFCBD5E1),
                             modifier = Modifier
                                 .width(180.dp)
@@ -252,7 +252,7 @@ fun CertificateModal(
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF1E293B)
                                 )
-                                Divider(color = Color(0xFF94A3B8), modifier = Modifier.width(90.dp))
+                                HorizontalDivider(color = Color(0xFF94A3B8), modifier = Modifier.width(90.dp))
                                 Text(
                                     text = "Dr. Meera Nambiar",
                                     fontSize = 10.sp,
@@ -304,7 +304,7 @@ fun CertificateModal(
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF1E293B)
                                 )
-                                Divider(color = Color(0xFF94A3B8), modifier = Modifier.width(90.dp))
+                                HorizontalDivider(color = Color(0xFF94A3B8), modifier = Modifier.width(90.dp))
                                 Text(
                                     text = "Arjun K. Rao",
                                     fontSize = 10.sp,
