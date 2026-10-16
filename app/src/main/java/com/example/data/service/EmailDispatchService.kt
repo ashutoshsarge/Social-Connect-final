@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,7 +17,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Service responsible for dispatching real OTP verification emails to users' email inboxes.
- * Dispatches via transactional HTTP email gateway and Firebase Auth services.
+ * Dispatches via transactional HTTP email gateway and Supabase Auth services.
  */
 object EmailDispatchService {
     private const val TAG = "EmailDispatchService"
@@ -81,18 +80,11 @@ object EmailDispatchService {
                 Log.w(TAG, "Direct gateway dispatch error: ${e.message}", e)
             }
 
-            // Channel 2: Firebase Auth email service verification attempt
+            // Channel 2: Supabase Auth email recovery dispatch
             try {
-                val auth = FirebaseAuth.getInstance()
-                auth.sendPasswordResetEmail(trimmedEmail).addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        Log.d(TAG, "Firebase Auth email dispatched successfully to $trimmedEmail")
-                    } else {
-                        Log.d(TAG, "Firebase Auth email status for $trimmedEmail: ${task.exception?.message}")
-                    }
-                }
+                SupabaseAuthService.resetPasswordForEmail(trimmedEmail)
             } catch (e: Exception) {
-                Log.d(TAG, "Firebase email trigger notice: ${e.message}")
+                Log.d(TAG, "Supabase email trigger notice: ${e.message}")
             }
 
             withContext(Dispatchers.Main) {

@@ -80,6 +80,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.SocialCompletedEvent
 import com.example.data.model.SocialEvent
+import com.example.ui.components.CookieConsentBanner
 import com.example.ui.components.SocialConnectLogoCompact
 import com.example.ui.theme.SocialBgBody
 import com.example.ui.theme.SocialBlue
@@ -107,6 +108,7 @@ fun MainAppScaffold(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Filtered / State flows
+    val allEvents by viewModel.events.collectAsState()
     val filteredEvents by viewModel.filteredSocialEvents.collectAsState()
     val upcomingEvents by viewModel.upcomingSocialEvents.collectAsState()
     val completedEvents by viewModel.completedSocialEvents.collectAsState()
@@ -125,6 +127,7 @@ fun MainAppScaffold(
     val userDistance by viewModel.userMaxDistance.collectAsState()
     val selectedDateFilter by viewModel.selectedDateFilter.collectAsState()
     val searchGroundingState by viewModel.searchGroundingState.collectAsState()
+    val cookieConsentGiven by viewModel.cookieConsentGiven.collectAsState()
 
     // Active bottom navigation tab
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Home/Dashboard, 1: Explore, 2: My Events, 3: Community, 4: NGOs, 5: Profile
@@ -137,6 +140,7 @@ fun MainAppScaffold(
     var showPreferencesModal by remember { mutableStateOf(false) }
     var showNotificationsModal by remember { mutableStateOf(false) }
     var showCreateEventModal by remember { mutableStateOf(false) }
+    var showLegalModalByTab by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(portalRole) {
         selectedTab = 0
@@ -751,27 +755,56 @@ fun MainAppScaffold(
                     onToggleFollowNGO = { viewModel.toggleFollowNGO(it) }
                 )
 
-                4 -> SocialProfileScreen(
-                    userCauses = userCauses,
-                    currentUser = currentUser,
-                    onOpenPreferences = { showPreferencesModal = true },
-                    onFindDrive = { selectedTab = 1 },
-                    onLogout = { viewModel.logout() }
+                4 -> {
+                    val sessionCount by viewModel.sessionLoginCount.collectAsState()
+                    SocialProfileScreen(
+                        userCauses = userCauses,
+                        currentUser = currentUser,
+                        onOpenPreferences = { showPreferencesModal = true },
+                        onFindDrive = { selectedTab = 1 },
+                        onLogout = { viewModel.logout() },
+                        onOpenLegalPolicy = { tab -> showLegalModalByTab = tab },
+                        onExportData = { viewModel.exportUserPersonalData() },
+                        onRequestDeleteData = { showLegalModalByTab = 0 },
+                        sessionLoginCount = sessionCount,
+                        maxLogins = com.example.data.local.UserSessionManager.MAX_ALLOWED_LOGINS,
+                        onRenewSession = { viewModel.renewSecuritySession() }
+                    )
+                }
+            }
+
+            // Floating Cookie & Local Storage Consent Banner (DPDP Act 2023 Compliant)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+            ) {
+                CookieConsentBanner(
+                    isVisible = !cookieConsentGiven,
+                    onAcceptAll = { viewModel.saveCookieConsent(essential = true, functional = true, analytics = true) },
+                    onRejectNonEssential = { viewModel.saveCookieConsent(essential = true, functional = false, analytics = false) },
+                    onSaveCustomPreferences = { f, a -> viewModel.saveCookieConsent(essential = true, functional = f, analytics = a) },
+                    onViewPolicy = { showLegalModalByTab = 2 }
                 )
             }
         }
     }
 
     // Modal Overlays
-    selectedEventForDetail?.let { event ->
+    selectedEventForDetail?.let { detailEvent ->
+        val liveEvent = filteredEvents.firstOrNull { it.id == detailEvent.id }
+            ?: allEvents.firstOrNull { it.id == detailEvent.id }
+            ?: detailEvent
         EventDetailModal(
-            event = event,
+            event = liveEvent,
             onDismiss = { selectedEventForDetail = null },
-            onToggleJoin = { viewModel.toggleJoinSocialEvent(event.id) },
-            onToggleBookmark = { viewModel.toggleBookmarkSocialEvent(event.id) },
+            onToggleJoin = { viewModel.toggleJoinSocialEvent(liveEvent.id) },
+            onToggleBookmark = { viewModel.toggleBookmarkSocialEvent(liveEvent.id) },
             onShowDirections = {
-                selectedEventForDirections = event
-            }
+                selectedEventForDirections = liveEvent
+            },
+            onDonateMoney = { amount -> viewModel.donateMoneyToEvent(liveEvent.id, amount) },
+            onDonateMaterial = { itemId, qty -> viewModel.donateMaterialToEvent(liveEvent.id, itemId, qty) }
         )
     }
 
@@ -798,7 +831,8 @@ fun MainAppScaffold(
             onDismiss = { showPreferencesModal = false },
             onSave = { causes, loc, dist ->
                 viewModel.savePreferences(causes, loc, dist)
-            }
+            },
+            onOpenLegalPolicy = { tab -> showLegalModalByTab = tab }
         )
     }
 
@@ -831,6 +865,15 @@ fun MainAppScaffold(
                     imageUrl = img
                 )
             }
+        )
+    }
+
+    // Legal Policies & Compliance Modal
+    if (showLegalModalByTab != null) {
+        LegalPoliciesModal(
+            initialTab = showLegalModalByTab!!,
+            viewModel = viewModel,
+            onDismiss = { showLegalModalByTab = null }
         )
     }
 }

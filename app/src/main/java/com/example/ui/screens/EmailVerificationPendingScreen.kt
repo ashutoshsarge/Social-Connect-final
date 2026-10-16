@@ -195,7 +195,7 @@ fun EmailVerificationPendingScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "A Firebase Auth verification link has been sent to:",
+                        text = "A Supabase Auth verification link has been sent to:",
                         fontSize = 13.sp,
                         color = SocialTextMuted,
                         textAlign = TextAlign.Center

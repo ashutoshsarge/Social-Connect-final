@@ -16,9 +16,33 @@ fun getCategoryDrawable(category: String): Int {
     }
 }
 
+data class MaterialDonationItem(
+    val id: String = "",
+    val name: String = "",
+    val category: String = "General", // "Toys", "Study Material", "Books", "Food", "Medical", "Supplies"
+    val neededQuantity: Int = 50,
+    val collectedQuantity: Int = 20,
+    val unit: String = "items", // "sets", "kits", "packs", "boxes", "pieces"
+    val urgency: String = "Normal", // "Urgent", "High Priority", "Normal"
+    val iconEmoji: String = "📦", // "🧸", "📚", "🎨", "🍲", "🌱", "🐾", "🩺"
+    val description: String = ""
+)
+
+data class DonationCampaign(
+    val targetAmount: Double = 25000.0,
+    val raisedAmount: Double = 16500.0,
+    val donorsCount: Int = 24,
+    val currencySymbol: String = "₹",
+    val materialItems: List<MaterialDonationItem> = emptyList(),
+    val allowMoneyDonation: Boolean = true,
+    val taxExemption80G: Boolean = true,
+    val userMoneyDonated: Double = 0.0,
+    val userMaterialDonated: List<String> = emptyList()
+)
+
 data class Changemaker(
-    val id: String,
-    val name: String,
+    val id: String = "",
+    val name: String = "",
     val avatar: String = "",
     val role: String = "Volunteer",
     val badge: String = "Changemaker",
@@ -26,29 +50,31 @@ data class Changemaker(
 )
 
 data class SocialEvent(
-    val id: String,
-    val title: String,
-    val ngoId: String,
-    val ngoName: String,
-    val ngoLogo: String,
+    val id: String = "",
+    val title: String = "",
+    val ngoId: String = "",
+    val ngoName: String = "",
+    val ngoLogo: String = "",
     val verified: Boolean = true,
-    val category: String, // Environment, Education, Food Distribution, Healthcare, Animal Welfare, Women Empowerment, Disaster Relief, Community Development
-    val dateStr: String,
-    val timeStr: String,
-    val location: String,
-    val distanceKm: Int,
-    val joinedCount: Int,
-    val maxVolunteers: Int,
-    val coverImg: String,
-    val description: String,
-    val whatYoullDo: List<String>,
-    val skillsNeeded: List<String>,
-    val whatToBring: List<String>,
+    val category: String = "Environment",
+    val dateStr: String = "",
+    val timeStr: String = "",
+    val location: String = "",
+    val distanceKm: Int = 0,
+    val joinedCount: Int = 0,
+    val maxVolunteers: Int = 50,
+    val coverImg: String = "",
+    val description: String = "",
+    val whatYoullDo: List<String> = emptyList(),
+    val skillsNeeded: List<String> = emptyList(),
+    val whatToBring: List<String> = emptyList(),
     val isJoined: Boolean = false,
     val isBookmarked: Boolean = false,
     val isWeekend: Boolean = true,
     val registeredChangemakers: List<Changemaker> = emptyList(),
-    val localDrawableRes: Int = getCategoryDrawable(category)
+    val localDrawableRes: Int = getCategoryDrawable(category),
+    val donationCampaign: DonationCampaign = DonationCampaign(),
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 data class SocialNGO(

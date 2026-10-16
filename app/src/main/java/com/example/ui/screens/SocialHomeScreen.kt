@@ -643,6 +643,42 @@ fun SocialEventCard(
                     trackColor = Color(0xFFF1F5F9)
                 )
 
+                // Donation & Materials Need Strip
+                val campaign = event.donationCampaign
+                val matCount = campaign.materialItems.size
+                val primaryMatNames = campaign.materialItems.take(2).joinToString(", ") { it.name.split("&").first().trim() }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFEF2F2),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .clickable { onSelect() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "🎁", fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Needs: $primaryMatNames ${if (matCount > 2) "+${matCount - 2} more" else ""}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF991B1B),
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "₹${campaign.raisedAmount.toInt()} raised of ₹${campaign.targetAmount.toInt()} • Tap to donate",
+                                fontSize = 10.sp,
+                                color = Color(0xFFB91C1C)
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Registered Changemakers Preview Bar

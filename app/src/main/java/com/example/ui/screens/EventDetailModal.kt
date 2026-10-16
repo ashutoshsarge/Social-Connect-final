@@ -57,6 +57,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.data.model.Changemaker
 import com.example.data.model.SocialEvent
+import com.example.ui.components.EventDonationSection
 import com.example.ui.components.SocialEventImage
 import com.example.ui.theme.SocialBlue
 import com.example.ui.theme.SocialGreen
@@ -73,7 +74,9 @@ fun EventDetailModal(
     onDismiss: () -> Unit,
     onToggleJoin: () -> Unit,
     onToggleBookmark: () -> Unit,
-    onShowDirections: () -> Unit
+    onShowDirections: () -> Unit,
+    onDonateMoney: (Double) -> Unit = {},
+    onDonateMaterial: (String, Int) -> Unit = { _, _ -> }
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -397,6 +400,23 @@ fun EventDetailModal(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(20.dp))
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Event Donations & Required Materials Section
+                    EventDonationSection(
+                        campaign = event.donationCampaign,
+                        eventTitle = event.title,
+                        eventCategory = event.category,
+                        eventDateStr = event.dateStr,
+                        ngoName = event.ngoName,
+                        onDonateMoney = onDonateMoney,
+                        onDonateMaterial = onDonateMaterial
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
                     Spacer(modifier = Modifier.height(20.dp))
 
                     // Registered Changemakers Section

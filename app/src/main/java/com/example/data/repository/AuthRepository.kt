@@ -1,12 +1,16 @@
 package com.example.data.repository
 
+import com.example.data.local.UserSessionManager
 import com.example.data.local.dao.UserDao
 import com.example.data.local.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class AuthRepository(private val userDao: UserDao) {
+class AuthRepository(
+    private val userDao: UserDao,
+    private val sessionManager: UserSessionManager? = null
+) {
 
     private val _currentUser = MutableStateFlow<UserEntity?>(null)
     val currentUser = _currentUser.asStateFlow()
@@ -40,6 +44,7 @@ class AuthRepository(private val userDao: UserDao) {
         }
 
         _currentUser.value = user
+        sessionManager?.saveLoginSession(user, password.trim())
         return Result.success(user)
     }
 
@@ -49,7 +54,8 @@ class AuthRepository(private val userDao: UserDao) {
         name: String,
         role: String,
         org: String,
-        phone: String
+        phone: String,
+        autoLogin: Boolean = false
     ): Result<UserEntity> {
         val existing = userDao.getUserByEmail(email.trim())
         if (existing != null) {
@@ -68,11 +74,57 @@ class AuthRepository(private val userDao: UserDao) {
         )
         val id = userDao.insertUser(newUser)
         val saved = newUser.copy(id = id)
-        _currentUser.value = saved
+        if (autoLogin) {
+            _currentUser.value = saved
+            sessionManager?.saveLoginSession(saved, password.trim())
+        }
+        return Result.success(saved)
+    }
+
+    suspend fun saveCredentials(
+        email: String,
+        password: String,
+        name: String,
+        role: String,
+        org: String = "",
+        phone: String = ""
+    ): Result<UserEntity> {
+        val existing = userDao.getUserByEmail(email.trim())
+        if (existing != null) {
+            val updated = existing.copy(
+                passwordHash = password.trim().ifBlank { existing.passwordHash },
+                fullName = name.trim().ifBlank { existing.fullName },
+                role = role.ifBlank { existing.role },
+                organization = org.trim().ifBlank { existing.organization },
+                phone = phone.trim().ifBlank { existing.phone }
+            )
+            userDao.updateUser(updated)
+            sessionManager?.saveLoginSession(updated, password.trim().ifBlank { existing.passwordHash })
+            return Result.success(updated)
+        }
+
+        val newUser = UserEntity(
+            email = email.trim(),
+            passwordHash = password.trim(),
+            fullName = name.trim(),
+            role = role,
+            organization = org.trim(),
+            phone = phone.trim(),
+            volunteerHours = if (role == "VOLUNTEER") 4 else 25,
+            badges = if (role == "VOLUNTEER") "New Contributor" else "Community Leader"
+        )
+        val id = userDao.insertUser(newUser)
+        val saved = newUser.copy(id = id)
+        sessionManager?.saveLoginSession(saved, password.trim())
         return Result.success(saved)
     }
 
     fun switchUser(user: UserEntity) {
+        _currentUser.value = user
+        sessionManager?.saveLoginSession(user, user.passwordHash)
+    }
+
+    fun restoreSession(user: UserEntity) {
         _currentUser.value = user
     }
 
@@ -100,6 +152,7 @@ class AuthRepository(private val userDao: UserDao) {
                 existing
             }
             _currentUser.value = updatedUser
+            sessionManager?.saveLoginSession(updatedUser, updatedUser.passwordHash)
             return Result.success(updatedUser)
         }
 
@@ -116,15 +169,12 @@ class AuthRepository(private val userDao: UserDao) {
         val id = userDao.insertUser(newUser)
         val saved = newUser.copy(id = id)
         _currentUser.value = saved
+        sessionManager?.saveLoginSession(saved, "otp_verified")
         return Result.success(saved)
     }
 
     fun logout() {
-        try {
-            com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
-        } catch (e: Exception) {
-            // Safe fallback if Firebase is not active
-        }
+        sessionManager?.logout()
         _currentUser.value = null
     }
 

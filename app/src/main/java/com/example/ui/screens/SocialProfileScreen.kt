@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +36,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -66,7 +69,13 @@ fun SocialProfileScreen(
     currentUser: UserEntity? = null,
     onOpenPreferences: () -> Unit,
     onFindDrive: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onOpenLegalPolicy: (Int) -> Unit = {},
+    onExportData: () -> Unit = {},
+    onRequestDeleteData: () -> Unit = {},
+    sessionLoginCount: Int = 1,
+    maxLogins: Int = 5,
+    onRenewSession: () -> Unit = {}
 ) {
     val isNgoLeader = currentUser?.role == "NGO_LEADER"
 
@@ -117,9 +126,9 @@ fun SocialProfileScreen(
     val badges = if (isNgoLeader) {
         listOf(
             BadgeData("🏆", "Master Organizer", "Organized 30+ verified social drives in NCR", Color(0xFFFEF3C7)),
-            BadgeData("🌿", "Green Delhi Pioneer", "Led largest urban afforestation campaigns", Color(0xFFD1FAE5)),
-            BadgeData("🛡️", "FCRA & 80G Certified", "100% compliant, audited nonprofit partner", Color(0xFFDBEAFE)),
-            BadgeData("⭐", "Top Rated Partner", "98% volunteer satisfaction rating", Color(0xFFFFEDD5))
+            BadgeData("🌿", "Green Delhi Pioneer", "Led urban afforestation campaigns in Delhi", Color(0xFFD1FAE5)),
+            BadgeData("🛡️", "Registered Section 80G", "Tax-exempt non-profit society in Delhi NCR", Color(0xFFDBEAFE)),
+            BadgeData("🤝", "Verified Organizer", "Active civic mobilization partner in NCR", Color(0xFFFFEDD5))
         )
     } else {
         listOf(
@@ -470,7 +479,7 @@ fun SocialProfileScreen(
                         ProfileStatItem(num = "34", label = "Drives Held")
                         ProfileStatItem(num = "1,420", label = "Volunteers", isHighlight = true)
                         ProfileStatItem(num = "4,850h", label = "Impact Hours")
-                        ProfileStatItem(num = "4.9 ★", label = "Rating")
+                        ProfileStatItem(num = "DL-Reg", label = "NGO Darpan")
                     } else {
                         ProfileStatItem(num = "12", label = "Drives Joined")
                         ProfileStatItem(num = "${currentUser?.volunteerHours ?: 42}", label = "Volunteer Hours", isHighlight = true)
@@ -644,6 +653,302 @@ fun SocialProfileScreen(
                             )
                         }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Legal, Privacy & DPDP Compliance Center Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "🛡️", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Legal & Privacy Governance",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SocialTextMain
+                                )
+                                Text(
+                                    text = "India DPDP Act 2023 • Section 8 Foundation",
+                                    fontSize = 10.5.sp,
+                                    color = SocialGreenDark,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFFDCFCE7),
+                            border = BorderStroke(1.dp, Color(0xFF86EFAC))
+                        ) {
+                            Text(
+                                text = "Audited",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF15803D),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Policy Links Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onOpenLegalPolicy(0) }
+                        ) {
+                            Text(
+                                text = "Privacy",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SocialTextMain,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onOpenLegalPolicy(1) }
+                        ) {
+                            Text(
+                                text = "Terms",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SocialTextMain,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onOpenLegalPolicy(2) }
+                        ) {
+                            Text(
+                                text = "Cookies",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SocialTextMain,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onOpenLegalPolicy(3) }
+                        ) {
+                            Text(
+                                text = "Refunds",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SocialTextMain,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Business & Grievance Desk Link
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFF1F5F9),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenLegalPolicy(4) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "🏢", fontSize = 13.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Corporate Details & Grievance Redressal Desk",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = SocialTextMain
+                                )
+                            }
+                            Text(text = "View →", fontSize = 11.sp, color = SocialGreen, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // DPDP Statutory Actions Row (Section 11 & 12)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onExportData,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                        ) {
+                            Text(
+                                text = "Export My Data",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SocialTextMain
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = onRequestDeleteData,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color(0xFFFEF2F2),
+                                contentColor = Color(0xFFDC2626)
+                            )
+                        ) {
+                            Text(
+                                text = "Erase Data",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFDC2626)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Session Security & Auto-Logout Status Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFEF3C7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = "Session Security",
+                                tint = Color(0xFFD97706),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Session Security Status",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SocialTextMain
+                            )
+                            Text(
+                                text = "Login $sessionLoginCount of $maxLogins active",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFD97706)
+                            )
+                        }
+                        Surface(
+                            onClick = onRenewSession,
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF1F5F9),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Renew",
+                                    tint = SocialTextMain,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "Renew",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SocialTextMain
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val progress = (sessionLoginCount.toFloat() / maxLogins.toFloat()).coerceIn(0f, 1f)
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = if (sessionLoginCount >= 4) Color(0xFFEF4444) else SocialGreen,
+                        trackColor = Color(0xFFF1F5F9)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "For your account protection, sessions auto-expire after $maxLogins logins to prevent unauthorized access on shared devices.",
+                        fontSize = 11.sp,
+                        color = SocialTextMuted,
+                        lineHeight = 15.sp
+                    )
                 }
             }
 

@@ -1,6 +1,10 @@
 package com.example.data.repository
 
+import android.content.Context
+import android.util.Log
 import com.example.data.model.Changemaker
+import com.example.data.model.DonationCampaign
+import com.example.data.model.MaterialDonationItem
 import com.example.data.model.SocialComment
 import com.example.data.model.SocialCompletedEvent
 import com.example.data.model.SocialEvent
@@ -8,11 +12,17 @@ import com.example.data.model.SocialNGO
 import com.example.data.model.SocialNotificationItem
 import com.example.data.model.SocialPost
 import com.example.data.model.VolunteerRosterItem
+import com.example.data.model.getCategoryDrawable
+import com.example.data.service.SupabaseDataService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class SocialConnectRepository {
+class SocialConnectRepository(private val context: Context? = null) {
 
     private val _events = MutableStateFlow(createInitialEvents())
     val events: StateFlow<List<SocialEvent>> = _events.asStateFlow()
@@ -32,8 +42,49 @@ class SocialConnectRepository {
     private val _notifications = MutableStateFlow(createInitialNotifications())
     val notifications: StateFlow<List<SocialNotificationItem>> = _notifications.asStateFlow()
 
+    init {
+        startRealtimeSync()
+    }
+
+    /**
+     * Connects to Supabase PostgREST endpoint to fetch live volunteer events.
+     * Keeps local state responsive and resilient with offline fallback.
+     */
+    fun startRealtimeSync() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val result = SupabaseDataService.fetchEvents()
+                if (result.isSuccess) {
+                    val remoteList = result.getOrNull() ?: emptyList()
+                    if (remoteList.isNotEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            val currentEvents = _events.value
+                            _events.value = remoteList.map { remoteEv ->
+                                val localMatch = currentEvents.firstOrNull { it.id == remoteEv.id }
+                                if (localMatch != null) {
+                                    remoteEv.copy(
+                                        isJoined = localMatch.isJoined || remoteEv.isJoined,
+                                        isBookmarked = localMatch.isBookmarked || remoteEv.isBookmarked
+                                    )
+                                } else {
+                                    remoteEv
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Notice fetching Supabase events: ${e.message}")
+            }
+        }
+    }
+
+
     fun toggleJoinEvent(eventId: String, volunteerName: String = "Rahul Nile"): String {
         var resultMsg = ""
+        var updatedChangemakersList: List<Changemaker> = emptyList()
+        var updatedCount = 0
+
         _events.value = _events.value.map { event ->
             if (event.id == eventId) {
                 val newJoined = !event.isJoined
@@ -52,9 +103,21 @@ class SocialConnectRepository {
                 } else {
                     event.registeredChangemakers.filter { it.name != volunteerName }
                 }
+                updatedChangemakersList = updatedChangemakers
+                updatedCount = newCount
                 event.copy(isJoined = newJoined, joinedCount = newCount, registeredChangemakers = updatedChangemakers)
             } else event
         }
+
+        // Supabase join count synchronization
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                SupabaseDataService.updateEventJoinedCount(eventId, updatedCount)
+            } catch (e: Exception) {
+                Log.w(TAG, "Error syncing join count to Supabase: ${e.message}")
+            }
+        }
+
         return resultMsg
     }
 
@@ -145,6 +208,54 @@ class SocialConnectRepository {
         _notifications.value = _notifications.value.map { it.copy(unread = false) }
     }
 
+    fun donateMoney(eventId: String, amount: Double, donorName: String = "Rahul Nile"): String {
+        var resultMsg = ""
+        var updatedCamp: DonationCampaign? = null
+        _events.value = _events.value.map { event ->
+            if (event.id == eventId) {
+                val camp = event.donationCampaign
+                val newRaised = camp.raisedAmount + amount
+                val newDonors = camp.donorsCount + 1
+                val updatedUserMoney = camp.userMoneyDonated + amount
+                val updatedCampaign = camp.copy(
+                    raisedAmount = newRaised,
+                    donorsCount = newDonors,
+                    userMoneyDonated = updatedUserMoney
+                )
+                updatedCamp = updatedCampaign
+                resultMsg = "Thank you $donorName! Donated ${camp.currencySymbol}${amount.toInt()} to \"${event.title}\". 80G Tax receipt generated."
+                event.copy(donationCampaign = updatedCampaign)
+            } else event
+        }
+
+        return resultMsg
+    }
+
+    fun donateMaterial(eventId: String, itemId: String, quantity: Int, donorName: String = "Rahul Nile"): String {
+        var resultMsg = ""
+        _events.value = _events.value.map { event ->
+            if (event.id == eventId) {
+                val camp = event.donationCampaign
+                var itemName = "items"
+                val updatedMaterials = camp.materialItems.map { item ->
+                    if (item.id == itemId) {
+                        itemName = item.name
+                        item.copy(collectedQuantity = item.collectedQuantity + quantity)
+                    } else item
+                }
+                val pledgeNote = "$quantity x $itemName"
+                val updatedCampaign = camp.copy(
+                    materialItems = updatedMaterials,
+                    userMaterialDonated = camp.userMaterialDonated + pledgeNote
+                )
+                resultMsg = "Thank you $donorName! Pledged $quantity of $itemName for \"${event.title}\"."
+                event.copy(donationCampaign = updatedCampaign)
+            } else event
+        }
+
+        return resultMsg
+    }
+
     fun createEvent(
         title: String,
         category: String,
@@ -155,14 +266,18 @@ class SocialConnectRepository {
         description: String,
         skills: List<String>,
         bring: List<String>,
-        imageUrl: String?
+        imageUrl: String?,
+        ngoName: String = "Green Delhi Foundation",
+        ngoLogo: String = "https://images.unsplash.com/photo-1579208575657-c595a05383b7?auto=format&fit=crop&w=120&q=80",
+        ngoId: String = "ngo-1"
     ) {
+        val eventId = "evt-${System.currentTimeMillis()}"
         val newEvent = SocialEvent(
-            id = "evt-${System.currentTimeMillis()}",
+            id = eventId,
             title = title,
-            ngoId = "ngo-1",
-            ngoName = "Green Delhi Foundation",
-            ngoLogo = "https://images.unsplash.com/photo-1579208575657-c595a05383b7?auto=format&fit=crop&w=120&q=80",
+            ngoId = ngoId,
+            ngoName = ngoName,
+            ngoLogo = ngoLogo,
             verified = true,
             category = category,
             dateStr = dateStr,
@@ -183,12 +298,30 @@ class SocialConnectRepository {
             whatToBring = if (bring.isEmpty()) listOf("Water bottle", "Comfortable shoes") else bring,
             isJoined = false,
             isBookmarked = false,
-            isWeekend = true
+            isWeekend = true,
+            localDrawableRes = getCategoryDrawable(category),
+            donationCampaign = getCampaignForEvent(eventId, category, title),
+            createdAt = System.currentTimeMillis()
         )
-        _events.value = listOf(newEvent) + _events.value
+
+        // 1. Immediately reflect locally so creating user sees it immediately
+        _events.value = listOf(newEvent) + _events.value.filter { it.id != eventId }
+
+        // 2. Persist to active Supabase cloud database
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                SupabaseDataService.createEvent(newEvent)
+                Log.d(TAG, "Event $eventId written to Supabase cloud database!")
+            } catch (e: Exception) {
+                Log.w(TAG, "Supabase write exception for $eventId: ${e.message}")
+            }
+        }
     }
 
     companion object {
+        const val COLLECTION_SOCIAL_EVENTS = "social_events"
+        private const val TAG = "SocialConnectRepo"
+
         private fun createInitialEvents(): List<SocialEvent> = listOf(
             SocialEvent(
                 id = "evt-1",
@@ -682,7 +815,154 @@ class SocialConnectRepository {
                 isWeekend = true,
                 registeredChangemakers = sampleChangemakers("Warmth Giver", "Compassion Star")
             )
-        )
+        ).map { it.copy(donationCampaign = getCampaignForEvent(it.id, it.category, it.title)) }
+
+        fun getCampaignForEvent(eventId: String, category: String, title: String): DonationCampaign {
+            return when (eventId) {
+                "evt-2" -> DonationCampaign(
+                    targetAmount = 30000.0,
+                    raisedAmount = 21500.0,
+                    donorsCount = 38,
+                    materialItems = listOf(
+                        MaterialDonationItem("mat-evt2-1", "Study Material & Notebooks", "Study Material", neededQuantity = 100, collectedQuantity = 68, unit = "sets", urgency = "Urgent", iconEmoji = "📚", description = "Ruled notebooks, pencil pouches, sharpeners, and erasers"),
+                        MaterialDonationItem("mat-evt2-2", "Educational Toys & STEM Puzzles", "Toys", neededQuantity = 50, collectedQuantity = 32, unit = "packs", urgency = "High Priority", iconEmoji = "🧸", description = "Building blocks, shape sorters, learning puzzles, and flashcards"),
+                        MaterialDonationItem("mat-evt2-3", "Children's Storybooks (Hindi & English)", "Books", neededQuantity = 120, collectedQuantity = 94, unit = "books", urgency = "Normal", iconEmoji = "📖", description = "Illustrated folktales, beginner moral stories, and comics"),
+                        MaterialDonationItem("mat-evt2-4", "Coloring Kits & Drawing Books", "Study Material", neededQuantity = 80, collectedQuantity = 55, unit = "kits", urgency = "Normal", iconEmoji = "🎨", description = "Crayons, sketch pens, watercolor sets, and drawing pads")
+                    )
+                )
+                "evt-1" -> DonationCampaign(
+                    targetAmount = 45000.0,
+                    raisedAmount = 32400.0,
+                    donorsCount = 52,
+                    materialItems = listOf(
+                        MaterialDonationItem("mat-evt1-1", "Native Neem & Peepal Saplings", "Plantation Supplies", neededQuantity = 200, collectedQuantity = 145, unit = "saplings", urgency = "Urgent", iconEmoji = "🌱", description = "1.5ft to 2ft healthy nursery saplings with root balls"),
+                        MaterialDonationItem("mat-evt1-2", "Protective Metal Tree Guards", "Equipment", neededQuantity = 50, collectedQuantity = 31, unit = "guards", urgency = "Urgent", iconEmoji = "🛡️", description = "Cylindrical mesh guards to safeguard young trees from cattle"),
+                        MaterialDonationItem("mat-evt1-3", "Organic Vermicompost Bags (10kg)", "Plantation Supplies", neededQuantity = 60, collectedQuantity = 42, unit = "bags", urgency = "High Priority", iconEmoji = "🪴", description = "Enriched nutrient soil and manure for root nourishment"),
+                        MaterialDonationItem("mat-evt1-4", "Gardening Hand Trowels & Gloves", "Tools", neededQuantity = 40, collectedQuantity = 35, unit = "sets", urgency = "Normal", iconEmoji = "🧤", description = "Rubber-coated garden gloves and heavy-duty steel trowels")
+                    )
+                )
+                "evt-3" -> DonationCampaign(
+                    targetAmount = 50000.0,
+                    raisedAmount = 41000.0,
+                    donorsCount = 72,
+                    materialItems = listOf(
+                        MaterialDonationItem("mat-evt3-1", "Dry Ration Family Kits", "Food Supplies", neededQuantity = 150, collectedQuantity = 118, unit = "kits", urgency = "Urgent", iconEmoji = "🍚", description = "Contains 5kg wheat flour, 2kg rice, 1kg pulses, 1L cooking oil"),
+                        MaterialDonationItem("mat-evt3-2", "Clean Drinking Water Jars (20L)", "Hydration", neededQuantity = 100, collectedQuantity = 88, unit = "jars", urgency = "High Priority", iconEmoji = "💧", description = "Purified sealed potable drinking water cans"),
+                        MaterialDonationItem("mat-evt3-3", "Nutrition Fruit Baskets & Biscuits", "Nutrition", neededQuantity = 80, collectedQuantity = 64, unit = "packs", urgency = "Normal", iconEmoji = "🍎", description = "Bananas, apples, glucose biscuits, and fortified milk tetrapacks"),
+                        MaterialDonationItem("mat-evt3-4", "Eco-friendly Meal Containers", "Packaging", neededQuantity = 500, collectedQuantity = 420, unit = "boxes", urgency = "Normal", iconEmoji = "🍱", description = "Bagasse sugarcane-pulp biodegradable meal boxes")
+                    )
+                )
+                "evt-4" -> DonationCampaign(
+                    targetAmount = 35000.0,
+                    raisedAmount = 24800.0,
+                    donorsCount = 44,
+                    materialItems = listOf(
+                        MaterialDonationItem("mat-evt4-1", "Chew Toys & Squeaky Balls for Rescue Pups", "Toys", neededQuantity = 60, collectedQuantity = 28, unit = "toys", urgency = "High Priority", iconEmoji = "🧸", description = "Non-toxic rubber chew toys and durable rope tugs for shelter dogs"),
+                        MaterialDonationItem("mat-evt4-2", "Dog & Cat Kibble Food Bags (15kg)", "Pet Food", neededQuantity = 40, collectedQuantity = 29, unit = "bags", urgency = "Urgent", iconEmoji = "🥣", description = "Nutritionally balanced adult dog and puppy dry food kibble"),
+                        MaterialDonationItem("mat-evt4-3", "Night Reflective Collars & Leashes", "Safety Gear", neededQuantity = 100, collectedQuantity = 74, unit = "collars", urgency = "High Priority", iconEmoji = "🦺", description = "High-visibility reflective collars to protect street animals"),
+                        MaterialDonationItem("mat-evt4-4", "Antiseptic Sprays & Healing Ointments", "Medical", neededQuantity = 50, collectedQuantity = 38, unit = "bottles", urgency = "Urgent", iconEmoji = "🩹", description = "Mag-spray, betadine, surgical cotton, and gauze rolls")
+                    )
+                )
+                "evt-5" -> DonationCampaign(
+                    targetAmount = 45000.0,
+                    raisedAmount = 31500.0,
+                    donorsCount = 56,
+                    materialItems = listOf(
+                        MaterialDonationItem("mat-evt5-1", "Prescription & Reading Glasses", "Optical", neededQuantity = 100, collectedQuantity = 68, unit = "pairs", urgency = "Urgent", iconEmoji = "👓", description = "Standard magnification spectacles (+1.0 to +3.5) for elders"),
+                        MaterialDonationItem("mat-evt5-2", "Digital BP Monitors & Glucometer Strips", "Diagnostics", neededQuantity = 40, collectedQuantity = 28, unit = "kits", urgency = "Urgent", iconEmoji = "🩺", description = "Automatic blood pressure cuffs and blood glucose test strips"),
+                        MaterialDonationItem("mat-evt5-3", "Children's Waiting Toys & Coloring Books", "Toys", neededQuantity = 35, collectedQuantity = 19, unit = "sets", urgency = "Normal", iconEmoji = "🧸", description = "Comfort toys, wooden puzzles and coloring pads for kids in line"),
+                        MaterialDonationItem("mat-evt5-4", "Senior Medical Care & Hygiene Kits", "Hygiene", neededQuantity = 75, collectedQuantity = 55, unit = "kits", urgency = "Normal", iconEmoji = "🧴", description = "Hand sanitizers, pain relief balms, and multivitamins")
+                    )
+                )
+                "evt-6" -> DonationCampaign(
+                    targetAmount = 32000.0,
+                    raisedAmount = 21000.0,
+                    donorsCount = 35,
+                    materialItems = listOf(
+                        MaterialDonationItem("mat-evt6-1", "Study Material & Business Literacy Booklets", "Study Material", neededQuantity = 80, collectedQuantity = 58, unit = "sets", urgency = "Urgent", iconEmoji = "📚", description = "Workbooks on bookkeeping, digital banking, and government schemes"),
+                        MaterialDonationItem("mat-evt6-2", "Activity & Play Toys for Participant Kids", "Toys", neededQuantity = 35, collectedQuantity = 20, unit = "packs", urgency = "Normal", iconEmoji = "🧸", description = "Keeps mothers' young children happily engaged during classes"),
+                        MaterialDonationItem("mat-evt6-3", "Financial Calculators & Register Ledgers", "Supplies", neededQuantity = 50, collectedQuantity = 36, unit = "units", urgency = "High Priority", iconEmoji = "📱", description = "Handheld desktop calculators and hardbound ledger books")
+                    )
+                )
+                "evt-14" -> DonationCampaign(
+                    targetAmount = 40000.0,
+                    raisedAmount = 34500.0,
+                    donorsCount = 61,
+                    materialItems = listOf(
+                        MaterialDonationItem("mat-evt14-1", "Thermal Fleece Blankets", "Clothing & Warmth", neededQuantity = 150, collectedQuantity = 115, unit = "blankets", urgency = "Urgent", iconEmoji = "🧣", description = "Heavyweight winter fleece blankets for transit shelters"),
+                        MaterialDonationItem("mat-evt14-2", "Children's Warm Clothing & Soft Toys", "Toys", neededQuantity = 40, collectedQuantity = 25, unit = "kits", urgency = "High Priority", iconEmoji = "🧸", description = "Warm woolen beanies, mittens, and plush huggable toys for shelter children"),
+                        MaterialDonationItem("mat-evt14-3", "Hot Meal & Vegetable Khichdi Servings", "Food", neededQuantity = 250, collectedQuantity = 200, unit = "servings", urgency = "Normal", iconEmoji = "🍲", description = "Freshly prepared nutritious warm khichdi with ghee and pickle")
+                    )
+                )
+                else -> createDefaultCampaignForCategory(category, title)
+            }
+        }
+
+        fun createDefaultCampaignForCategory(category: String, title: String): DonationCampaign {
+            val catLower = category.lowercase()
+            return when {
+                catLower.contains("education") || catLower.contains("teach") || catLower.contains("school") -> {
+                    DonationCampaign(
+                        targetAmount = 25000.0,
+                        raisedAmount = 18000.0,
+                        donorsCount = 29,
+                        materialItems = listOf(
+                            MaterialDonationItem("mat-def-edu-1", "Study Material & Exercise Notebooks", "Study Material", neededQuantity = 80, collectedQuantity = 54, unit = "sets", urgency = "Urgent", iconEmoji = "📚", description = "Writing notebooks, pencils, erasers, and geometry instruments"),
+                            MaterialDonationItem("mat-def-edu-2", "Educational Toys, Blocks & Puzzles", "Toys", neededQuantity = 40, collectedQuantity = 25, unit = "packs", urgency = "High Priority", iconEmoji = "🧸", description = "Constructive wooden toys and logic games for young minds"),
+                            MaterialDonationItem("mat-def-edu-3", "Drawing Kits & Sketch Books", "Art & Craft", neededQuantity = 60, collectedQuantity = 42, unit = "kits", urgency = "Normal", iconEmoji = "🎨", description = "Color pencils, wax crayons, and drawing sketchbooks")
+                        )
+                    )
+                }
+                catLower.contains("food") || catLower.contains("hunger") || catLower.contains("meal") -> {
+                    DonationCampaign(
+                        targetAmount = 35000.0,
+                        raisedAmount = 26500.0,
+                        donorsCount = 42,
+                        materialItems = listOf(
+                            MaterialDonationItem("mat-def-food-1", "Grain & Ration Grocery Packs", "Food", neededQuantity = 100, collectedQuantity = 75, unit = "packs", urgency = "Urgent", iconEmoji = "🍚", description = "Staple grains, lentils, salt, spices, and cooking oil"),
+                            MaterialDonationItem("mat-def-food-2", "Child Nutrition Biscuits & Milk Kits", "Nutrition", neededQuantity = 60, collectedQuantity = 45, unit = "kits", urgency = "High Priority", iconEmoji = "🥛", description = "Fortified milk and high-protein biscuits"),
+                            MaterialDonationItem("mat-def-food-3", "Hygiene & Sanitizer Packs", "Hygiene", neededQuantity = 80, collectedQuantity = 62, unit = "packs", urgency = "Normal", iconEmoji = "🧼", description = "Handwashing soap bars and antiseptic wipes")
+                        )
+                    )
+                }
+                catLower.contains("animal") || catLower.contains("pet") || catLower.contains("dog") -> {
+                    DonationCampaign(
+                        targetAmount = 30000.0,
+                        raisedAmount = 22000.0,
+                        donorsCount = 36,
+                        materialItems = listOf(
+                            MaterialDonationItem("mat-def-anim-1", "Chew Toys & Dog Activity Toys", "Toys", neededQuantity = 45, collectedQuantity = 26, unit = "toys", urgency = "High Priority", iconEmoji = "🧸", description = "Durable chew ropes and squeaker balls for rescue animals"),
+                            MaterialDonationItem("mat-def-anim-2", "Puppy & Dog Kibble Food", "Food", neededQuantity = 35, collectedQuantity = 24, unit = "bags", urgency = "Urgent", iconEmoji = "🥣", description = "Nutritious dry pet food bags"),
+                            MaterialDonationItem("mat-def-anim-3", "Medical First Aid & Healing Sprays", "Medical", neededQuantity = 40, collectedQuantity = 30, unit = "kits", urgency = "Urgent", iconEmoji = "🩹", description = "Wound healing sprays, gauze bandages, and deworming tablets")
+                        )
+                    )
+                }
+                catLower.contains("environment") || catLower.contains("tree") || catLower.contains("clean") -> {
+                    DonationCampaign(
+                        targetAmount = 35000.0,
+                        raisedAmount = 24000.0,
+                        donorsCount = 37,
+                        materialItems = listOf(
+                            MaterialDonationItem("mat-def-env-1", "Healthy Native Plant Saplings", "Plantation Supplies", neededQuantity = 120, collectedQuantity = 82, unit = "saplings", urgency = "Urgent", iconEmoji = "🌱", description = "Neem, Ashoka, Jamun, and fruit saplings"),
+                            MaterialDonationItem("mat-def-env-2", "Organic Compost & Soil Fertilizer", "Plantation Supplies", neededQuantity = 50, collectedQuantity = 34, unit = "bags", urgency = "High Priority", iconEmoji = "🪴", description = "Natural vermicompost bags"),
+                            MaterialDonationItem("mat-def-env-3", "Plantation Gloves & Shovels", "Tools", neededQuantity = 35, collectedQuantity = 28, unit = "sets", urgency = "Normal", iconEmoji = "🧤", description = "Gardening equipment sets")
+                        )
+                    )
+                }
+                else -> {
+                    DonationCampaign(
+                        targetAmount = 25000.0,
+                        raisedAmount = 16500.0,
+                        donorsCount = 24,
+                        materialItems = listOf(
+                            MaterialDonationItem("mat-def-gen-1", "Study Material & Notebooks", "Study Material", neededQuantity = 60, collectedQuantity = 40, unit = "sets", urgency = "High Priority", iconEmoji = "📚", description = "Educational supplies and writing kits"),
+                            MaterialDonationItem("mat-def-gen-2", "Educational Toys & Games", "Toys", neededQuantity = 35, collectedQuantity = 21, unit = "packs", urgency = "Normal", iconEmoji = "🧸", description = "Play and learning toys for community children"),
+                            MaterialDonationItem("mat-def-gen-3", "Community Care Kits", "Supplies", neededQuantity = 50, collectedQuantity = 36, unit = "kits", urgency = "Normal", iconEmoji = "📦", description = "Essential support items and first-aid kits")
+                        )
+                    )
+                }
+            }
+        }
 
         private fun sampleChangemakers(badge1: String, badge2: String): List<Changemaker> = listOf(
             Changemaker("cm-1", "Ananya Verma", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80", "Volunteer Coordinator", badge1, "2 days ago"),

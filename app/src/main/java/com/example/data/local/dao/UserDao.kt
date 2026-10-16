@@ -39,4 +39,7 @@ interface UserDao {
 
     @Query("UPDATE users SET volunteerHours = volunteerHours + :addedHours WHERE id = :userId")
     suspend fun addVolunteerHours(userId: Long, addedHours: Int)
+
+    @Query("DELETE FROM users WHERE id = :id")
+    suspend fun deleteUserById(id: Long)
 }

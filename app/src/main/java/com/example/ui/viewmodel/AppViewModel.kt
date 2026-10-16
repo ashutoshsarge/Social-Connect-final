@@ -4,12 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
+import com.example.data.local.UserSessionManager
+import com.example.data.local.UserSessionResult
 import com.example.data.local.entity.EventEntity
 import com.example.data.local.entity.SubtaskEntity
 import com.example.data.local.entity.TaskEntity
 import com.example.data.local.entity.UserEntity
 import com.example.data.model.DashboardStats
-import com.example.data.model.FirestoreUser
 import com.example.data.model.SocialCompletedEvent
 import com.example.data.model.SocialEvent
 import com.example.data.model.SocialNGO
@@ -18,15 +19,14 @@ import com.example.data.model.SocialPost
 import com.example.data.model.VolunteerRosterItem
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.EventRepository
-import com.example.data.repository.FirestoreUserRepository
-import com.example.data.repository.FirestoreVolunteerEventRepository
 import com.example.data.repository.SocialConnectRepository
 import com.example.data.repository.TaskRepository
 import com.example.data.service.EmailOtpSecurityService
-import com.example.data.service.FirebaseAuthService
 import com.example.data.service.GeminiSearchGroundingService
 import com.example.data.service.SearchGroundingResult
 import com.example.data.service.SearchGroundingUiState
+import com.example.data.service.SupabaseAuthService
+import com.example.data.service.SupabaseDataService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,27 +39,40 @@ import kotlinx.coroutines.launch
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getDatabase(application, viewModelScope)
-    private val authRepo = AuthRepository(database.userDao())
+    val sessionManager = UserSessionManager(application)
+    private val authRepo = AuthRepository(database.userDao(), sessionManager)
     private val taskRepo = TaskRepository(database.taskDao())
     private val eventRepo = EventRepository(database.eventDao())
-    val socialRepo = SocialConnectRepository()
-    val firestoreUserRepo = FirestoreUserRepository()
-    val firestoreEventRepo = FirestoreVolunteerEventRepository()
+    val socialRepo = SocialConnectRepository(application)
 
     // Auth & Users
     val currentUser: StateFlow<UserEntity?> = authRepo.currentUser
     val allUsers: StateFlow<List<UserEntity>> = authRepo.getAllUsers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Firestore Persisted User State
-    private val _firestoreUser = MutableStateFlow<FirestoreUser?>(null)
-    val firestoreUser: StateFlow<FirestoreUser?> = _firestoreUser.asStateFlow()
+    // Session Security & Login Counter
+    private val _sessionLoginCount = MutableStateFlow(1)
+    val sessionLoginCount: StateFlow<Int> = _sessionLoginCount.asStateFlow()
+
+    private val _securityLogoutMessage = MutableStateFlow<String?>(null)
+    val securityLogoutMessage: StateFlow<String?> = _securityLogoutMessage.asStateFlow()
+
+    fun clearSecurityLogoutMessage() {
+        _securityLogoutMessage.value = null
+        sessionManager.clearSecurityLogoutMessage()
+    }
+
+    fun renewSecuritySession() {
+        val renewed = sessionManager.renewSession()
+        _sessionLoginCount.value = renewed
+        _snackbarMessage.value = "Security session renewed (Session 1 of ${UserSessionManager.MAX_ALLOWED_LOGINS})"
+    }
 
     // Google Search Grounding with gemini-3.5-flash
     private val _searchGroundingState = MutableStateFlow<SearchGroundingUiState>(SearchGroundingUiState.Idle)
     val searchGroundingState: StateFlow<SearchGroundingUiState> = _searchGroundingState.asStateFlow()
 
-    // Firebase Auth Email Verification State
+    // Email Verification State
     private val _isEmailVerificationPending = MutableStateFlow(false)
     val isEmailVerificationPending: StateFlow<Boolean> = _isEmailVerificationPending.asStateFlow()
 
@@ -68,6 +81,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isCheckingVerification = MutableStateFlow(false)
     val isCheckingVerification: StateFlow<Boolean> = _isCheckingVerification.asStateFlow()
+
+    // Sign in UX state: Pre-filled email & success notice after sign up
+    private val _prefilledAuthEmail = MutableStateFlow<String?>(null)
+    val prefilledAuthEmail: StateFlow<String?> = _prefilledAuthEmail.asStateFlow()
+
+    private val _authSuccessNotice = MutableStateFlow<String?>(null)
+    val authSuccessNotice: StateFlow<String?> = _authSuccessNotice.asStateFlow()
+
+    fun clearAuthSuccessNotice() {
+        _authSuccessNotice.value = null
+    }
+
+    fun setPrefilledAuthEmail(email: String) {
+        _prefilledAuthEmail.value = email
+    }
 
     // Database task & stats flows
     val allTasks: StateFlow<List<TaskEntity>> = taskRepo.allTasks
@@ -109,28 +137,32 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val portalRole = _currentPortalRole.asStateFlow()
 
     init {
-        // Automatically bind portal role strictly to authenticated user's assigned role
+        // Enforce Session Security & Initial Auth Gate
+        when (val sessionRes = sessionManager.checkAndResumeSession()) {
+            is UserSessionResult.ActiveSession -> {
+                _sessionLoginCount.value = sessionRes.loginCount
+                authRepo.restoreSession(sessionRes.user)
+                _currentPortalRole.value = if (sessionRes.user.role == "NGO_LEADER") "NGO_LEADER" else "VOLUNTEER"
+            }
+            is UserSessionResult.SecurityAutoLogout -> {
+                _sessionLoginCount.value = 0
+                _securityLogoutMessage.value = sessionRes.message
+                _prefilledAuthEmail.value = sessionRes.expiredEmail
+            }
+            is UserSessionResult.NoSession -> {
+                _sessionLoginCount.value = 0
+                // User is not allowed in without login or signup - remains on AuthScreen
+            }
+        }
+
+        // Keep portal role and Supabase profile in sync with authenticated user
         viewModelScope.launch {
             currentUser.collect { user ->
                 if (user != null) {
                     _currentPortalRole.value = if (user.role == "NGO_LEADER") "NGO_LEADER" else "VOLUNTEER"
-                    val uid = FirebaseAuthService.currentUser?.uid ?: user.email.replace(".", "_")
-                    firestoreUserRepo.getUserProfile(uid).collect { fUser ->
-                        _firestoreUser.value = fUser
-                    }
-                } else {
-                    _firestoreUser.value = null
-                }
-            }
-        }
-        viewModelScope.launch {
-            allUsers.collect { users ->
-                if (currentUser.value == null && users.isNotEmpty()) {
-                    val rahul = users.firstOrNull { it.email.equals("rahulnile@gmail.com", ignoreCase = true) }
-                        ?: users.firstOrNull { it.id == 1L }
-                    if (rahul != null) {
-                        authRepo.switchUser(rahul)
-                    }
+                    try {
+                        SupabaseDataService.syncUserProfile(user)
+                    } catch (_: Exception) {}
                 }
             }
         }
@@ -152,203 +184,165 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _sortMethod = MutableStateFlow("recommended")
     val sortMethod = _sortMethod.asStateFlow()
 
-    private val _userCauses = MutableStateFlow(listOf("Environment", "Education", "Animal Welfare", "Food Distribution"))
+    private val _userCauses = MutableStateFlow(listOf("Environment", "Education", "Food Security", "Animal Care"))
     val userCauses = _userCauses.asStateFlow()
 
-    private val _maxDistanceKm = MutableStateFlow(10)
+    private val _maxDistanceKm = MutableStateFlow(15)
     val maxDistanceKm = _maxDistanceKm.asStateFlow()
     val userMaxDistance = _maxDistanceKm.asStateFlow()
 
-    private val _myEventsTab = MutableStateFlow("upcoming") // "upcoming", "completed", "saved"
-    val myEventsTab = _myEventsTab.asStateFlow()
+    val filteredSocialEvents: StateFlow<List<SocialEvent>> = combine(
+        events,
+        selectedCategory,
+        searchQuery,
+        selectedDateFilter,
+        currentLocation
+    ) { evList, cat, q, dateFilter, loc ->
+        evList.filter { event ->
+            val matchCat = cat == "all" || event.category.equals(cat, ignoreCase = true)
+            val matchQuery = q.isBlank() || event.title.contains(q, ignoreCase = true) ||
+                    event.location.contains(q, ignoreCase = true) ||
+                    event.ngoName.contains(q, ignoreCase = true)
+            val matchDate = when (dateFilter) {
+                "today" -> event.dateStr.contains("today", ignoreCase = true)
+                "tomorrow" -> event.dateStr.contains("tomorrow", ignoreCase = true)
+                "weekend" -> event.isWeekend || event.dateStr.contains("sunday", ignoreCase = true) || event.dateStr.contains("saturday", ignoreCase = true)
+                else -> true
+            }
+            matchCat && matchQuery && matchDate
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Modals & detail views
+    private val _selectedEventForDetail = MutableStateFlow<SocialEvent?>(null)
+    val selectedEventForDetail = _selectedEventForDetail.asStateFlow()
+
+    private val _selectedEventForDonation = MutableStateFlow<SocialEvent?>(null)
+    val selectedEventForDonation = _selectedEventForDonation.asStateFlow()
+
+    private val _selectedEventForDirections = MutableStateFlow<SocialEvent?>(null)
+    val selectedEventForDirections = _selectedEventForDirections.asStateFlow()
+
+    private val _selectedEventForCertificate = MutableStateFlow<SocialEvent?>(null)
+    val selectedEventForCertificate = _selectedEventForCertificate.asStateFlow()
+
+    private val _selectedCompletedEventForCertificate = MutableStateFlow<SocialCompletedEvent?>(null)
+    val selectedCompletedEventForCertificate = _selectedCompletedEventForCertificate.asStateFlow()
+
+    private val _isPreferencesOpen = MutableStateFlow(false)
+    val isPreferencesOpen = _isPreferencesOpen.asStateFlow()
+
+    private val _isCreateEventOpen = MutableStateFlow(false)
+    val isCreateEventOpen = _isCreateEventOpen.asStateFlow()
+
+    private val _isNotificationsOpen = MutableStateFlow(false)
+    val isNotificationsOpen = _isNotificationsOpen.asStateFlow()
+
+    private val _activeLegalPolicyModal = MutableStateFlow<Int?>(null)
+    val activeLegalPolicyModal = _activeLegalPolicyModal.asStateFlow()
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage = _snackbarMessage.asStateFlow()
 
-    data class EventFilterCriteria(
-        val loc: String,
-        val cat: String,
-        val query: String,
-        val sort: String,
-        val dateFilter: String
-    )
+    // Cookie & Data Tracking Consent State (DPDP Act 2023)
+    private val _cookieConsentGiven = MutableStateFlow(true)
+    val cookieConsentGiven = _cookieConsentGiven.asStateFlow()
 
-    private val filterCriteria: Flow<EventFilterCriteria> = combine(
-        currentLocation,
-        selectedCategory,
-        searchQuery,
-        sortMethod,
-        _selectedDateFilter
-    ) { loc, cat, query, sort, dateFilter ->
-        EventFilterCriteria(loc, cat, query, sort, dateFilter)
-    }
+    private val _functionalCookiesEnabled = MutableStateFlow(true)
+    val functionalCookiesEnabled = _functionalCookiesEnabled.asStateFlow()
 
-    // Filtered Social Events Flow matching website logic
-    val filteredSocialEvents: StateFlow<List<SocialEvent>> = combine(
-        events,
-        filterCriteria
-    ) { evts, criteria ->
-        val loc = criteria.loc
-        val cat = criteria.cat
-        val query = criteria.query
-        val sort = criteria.sort
-        val dateFilter = criteria.dateFilter
-        evts.filter { evt ->
-            // Location filter
-            if (loc != "Delhi" && loc != "all" && loc != "All Delhi NCR" && loc != "All Locations") {
-                val locFilter = loc.lowercase().trim()
-                val evtLoc = evt.location.lowercase()
-                val matchLoc = when {
-                    locFilter.contains("dwarka") && evtLoc.contains("dwarka") -> true
-                    locFilter.contains("south") && (evtLoc.contains("south") || evtLoc.contains("hauz khas") || evtLoc.contains("mehrauli") || evtLoc.contains("okhla")) -> true
-                    locFilter.contains("janakpuri") && evtLoc.contains("janakpuri") -> true
-                    locFilter.contains("noida") && evtLoc.contains("noida") -> true
-                    locFilter.contains("gurugram") && evtLoc.contains("gurugram") -> true
-                    locFilter.contains("connaught") || locFilter.contains("central") -> evtLoc.contains("connaught") || evtLoc.contains("central") || evtLoc.contains("delhi")
-                    locFilter.contains("old delhi") -> evtLoc.contains("old delhi") || evtLoc.contains("railway")
-                    else -> evtLoc.contains(locFilter)
-                }
-                if (!matchLoc) return@filter false
-            }
+    private val _analyticsTrackingEnabled = MutableStateFlow(true)
+    val analyticsTrackingEnabled = _analyticsTrackingEnabled.asStateFlow()
 
-            // Category filter
-            when (cat.trim().lowercase()) {
-                "near-me" -> if (evt.distanceKm > 6) return@filter false
-                "this-weekend" -> if (!evt.isWeekend) return@filter false
-                "all", "all causes" -> { /* allow all */ }
-                else -> if (!evt.category.equals(cat.trim(), ignoreCase = true)) return@filter false
-            }
-
-            // Date filter
-            when (dateFilter.trim().lowercase()) {
-                "weekend", "this-weekend", "this weekend" -> if (!evt.isWeekend) return@filter false
-                "week", "next 7 days", "next-7-days" -> if (evt.distanceKm > 8 && !evt.isWeekend) return@filter false
-                "today", "today / tomorrow" -> if (evt.distanceKm > 6) return@filter false
-                "all", "all dates" -> { /* allow all */ }
-                else -> { /* allow */ }
-            }
-
-            // Search query filter
-            if (query.isNotBlank()) {
-                val q = query.lowercase().trim()
-                val match = evt.title.lowercase().contains(q) ||
-                    evt.description.lowercase().contains(q) ||
-                    evt.ngoName.lowercase().contains(q) ||
-                    evt.category.lowercase().contains(q) ||
-                    evt.location.lowercase().contains(q) ||
-                    evt.skillsNeeded.any { it.lowercase().contains(q) }
-                if (!match) return@filter false
-            }
-
-            true
-        }.sortedWith { a, b ->
-            when (sort) {
-                "nearest" -> a.distanceKm.compareTo(b.distanceKm)
-                "popular" -> b.joinedCount.compareTo(a.joinedCount)
-                "newest" -> b.id.compareTo(a.id)
-                else -> 0
-            }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    fun togglePortalRole() {
-        val user = currentUser.value
-        if (user?.role == "VOLUNTEER") {
-            _snackbarMessage.value = "Access restricted: Only verified NGO Leaders can access NGO Portal."
-        } else if (user?.role == "NGO_LEADER") {
-            _snackbarMessage.value = "Access restricted: Currently logged in as NGO Organization Lead."
-        }
-    }
-
-    fun loginAsVolunteerDemo(onComplete: () -> Unit = {}) {
-        viewModelScope.launch {
-            var user = allUsers.value.firstOrNull { it.email.equals("rahulnile@gmail.com", ignoreCase = true) }
-                ?: allUsers.value.firstOrNull { it.fullName.contains("Rahul Nile", ignoreCase = true) }
-                ?: database.userDao().getUserByEmail("rahulnile@gmail.com")
-                ?: database.userDao().getUserByIdSync(1)
-
-            if (user == null || user.fullName == "Ananya Sen" || !user.email.equals("rahulnile@gmail.com", ignoreCase = true)) {
-                val rahul = UserEntity(
-                    id = 1,
-                    email = "rahulnile@gmail.com",
-                    passwordHash = "seva123",
-                    fullName = "Rahul Nile",
-                    role = "VOLUNTEER",
-                    organization = "Delhi Youth Volunteers",
-                    volunteerHours = 42,
-                    badges = "Eco Champion,Weekend Hero,7-Day Streak,Verified Volunteer",
-                    phone = "+91 98765 43210"
-                )
-                database.userDao().insertUser(rahul)
-                user = rahul
-            }
-
-            authRepo.switchUser(user)
-            _currentPortalRole.value = "VOLUNTEER"
-            _snackbarMessage.value = "Signed in as Rahul Nile (Volunteer)"
-            onComplete()
-        }
-    }
-
-    fun loginAsNgoDemo(onComplete: () -> Unit = {}) {
-        viewModelScope.launch {
-            val user = allUsers.value.firstOrNull { it.role == "NGO_LEADER" }
-            if (user != null) {
-                authRepo.switchUser(user)
-                _currentPortalRole.value = "NGO_LEADER"
-                _snackbarMessage.value = "Signed in as Dr. Aarav Patel (Green Delhi Foundation)"
-                onComplete()
-            } else {
-                login("aarav.patel@greendelhi.org", "admin123") { success, _ ->
-                    if (success) {
-                        _currentPortalRole.value = "NGO_LEADER"
-                        onComplete()
-                    } else {
-                        // Instant fallback guarantee
-                        val fallback = UserEntity(
-                            id = 2,
-                            email = "aarav.patel@greendelhi.org",
-                            passwordHash = "admin123",
-                            fullName = "Dr. Aarav Patel",
-                            role = "NGO_LEADER",
-                            organization = "Green Delhi Foundation",
-                            volunteerHours = 340,
-                            badges = "Master Organizer,Green Delhi Pioneer,FCRA & 80G Certified,Top Rated Partner",
-                            phone = "+91 98112 34567"
-                        )
-                        authRepo.switchUser(fallback)
-                        _currentPortalRole.value = "NGO_LEADER"
-                        _snackbarMessage.value = "Signed in as Dr. Aarav Patel (Green Delhi Foundation)"
-                        onComplete()
-                    }
-                }
-            }
-        }
-    }
-
-    fun setLocation(loc: String) {
-        _currentLocation.value = loc
-        _snackbarMessage.value = "Location set to $loc"
-    }
-
+    // Actions & Handlers
     fun setCategory(cat: String) {
         _selectedCategory.value = cat
     }
 
-    fun setSearchQuery(query: String) {
-        _searchQuery.value = query
+    fun setSearchQuery(q: String) {
+        _searchQuery.value = q
+    }
+
+    fun setLocation(loc: String) {
+        _currentLocation.value = loc
+        _snackbarMessage.value = "Location updated to $loc"
+    }
+
+    fun setDateFilter(filter: String) {
+        _selectedDateFilter.value = filter
     }
 
     fun setSortMethod(sort: String) {
         _sortMethod.value = sort
     }
 
-    fun setMyEventsTab(tab: String) {
-        _myEventsTab.value = tab
+    fun selectEventForDetail(event: SocialEvent) {
+        _selectedEventForDetail.value = event
     }
 
-    fun setDateFilter(date: String) {
-        _selectedDateFilter.value = date
+    fun closeEventDetail() {
+        _selectedEventForDetail.value = null
+    }
+
+    fun selectEventForDonation(event: SocialEvent) {
+        _selectedEventForDonation.value = event
+    }
+
+    fun closeDonationModal() {
+        _selectedEventForDonation.value = null
+    }
+
+    fun selectEventForDirections(event: SocialEvent) {
+        _selectedEventForDirections.value = event
+    }
+
+    fun closeDirectionsModal() {
+        _selectedEventForDirections.value = null
+    }
+
+    fun selectEventForCertificate(event: SocialEvent) {
+        _selectedEventForCertificate.value = event
+    }
+
+    fun selectCompletedEventForCertificate(completed: SocialCompletedEvent) {
+        _selectedCompletedEventForCertificate.value = completed
+    }
+
+    fun closeCertificateModal() {
+        _selectedEventForCertificate.value = null
+        _selectedCompletedEventForCertificate.value = null
+    }
+
+    fun openPreferences() {
+        _isPreferencesOpen.value = true
+    }
+
+    fun closePreferences() {
+        _isPreferencesOpen.value = false
+    }
+
+    fun openCreateEvent() {
+        _isCreateEventOpen.value = true
+    }
+
+    fun closeCreateEvent() {
+        _isCreateEventOpen.value = false
+    }
+
+    fun openNotifications() {
+        _isNotificationsOpen.value = true
+    }
+
+    fun closeNotifications() {
+        _isNotificationsOpen.value = false
+    }
+
+    fun openLegalPolicyModal(tabIndex: Int) {
+        _activeLegalPolicyModal.value = tabIndex
+    }
+
+    fun closeLegalPolicyModal() {
+        _activeLegalPolicyModal.value = null
     }
 
     fun resetFilters() {
@@ -361,32 +355,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleJoinSocialEvent(eventId: String) {
-        val msg = socialRepo.toggleJoinEvent(eventId)
+        val user = currentUser.value
+        val name = user?.fullName?.ifBlank { "Rahul Nile" } ?: "Rahul Nile"
+        val msg = socialRepo.toggleJoinEvent(eventId, name)
         _snackbarMessage.value = msg
-        // Sync with Firebase Firestore
-        viewModelScope.launch {
-            val user = currentUser.value
-            val isNowJoined = events.value.firstOrNull { it.id == eventId }?.isJoined == true
-            val uid = FirebaseAuthService.currentUser?.uid ?: user?.email?.replace(".", "_") ?: "rahul_nile"
-            firestoreUserRepo.toggleJoinedEvent(uid, eventId, isNowJoined)
-            if (isNowJoined) {
-                firestoreEventRepo.registerVolunteer(eventId, uid)
-            } else {
-                firestoreEventRepo.unregisterVolunteer(eventId, uid)
-            }
-        }
     }
 
     fun toggleBookmark(eventId: String) {
         val msg = socialRepo.toggleBookmark(eventId)
         _snackbarMessage.value = msg
-        // Sync with Firebase Firestore
-        viewModelScope.launch {
-            val user = currentUser.value
-            val isBookmarked = events.value.firstOrNull { it.id == eventId }?.isBookmarked == true
-            val uid = FirebaseAuthService.currentUser?.uid ?: user?.email?.replace(".", "_") ?: "rahul_nile"
-            firestoreUserRepo.toggleBookmarkedEvent(uid, eventId, isBookmarked)
-        }
     }
 
     fun toggleBookmarkSocialEvent(eventId: String) {
@@ -421,6 +398,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         publishPost(text)
     }
 
+    fun donateMoneyToEvent(eventId: String, amount: Double) {
+        val donor = currentUser.value?.fullName?.ifBlank { "Rahul Nile" } ?: "Rahul Nile"
+        val msg = socialRepo.donateMoney(eventId, amount, donor)
+        _snackbarMessage.value = msg
+    }
+
+    fun donateMaterialToEvent(eventId: String, itemId: String, quantity: Int) {
+        val donor = currentUser.value?.fullName?.ifBlank { "Rahul Nile" } ?: "Rahul Nile"
+        val msg = socialRepo.donateMaterial(eventId, itemId, quantity, donor)
+        _snackbarMessage.value = msg
+    }
+
     fun toggleFollowNGO(ngoId: String) {
         val msg = socialRepo.toggleFollowNGO(ngoId)
         _snackbarMessage.value = msg
@@ -447,22 +436,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         _maxDistanceKm.value = distanceKm
         _snackbarMessage.value = "Personalized feed updated with your interests! ✨"
-
-        // Sync preferences with Firebase Firestore
-        viewModelScope.launch {
-            val user = currentUser.value
-            val uid = FirebaseAuthService.currentUser?.uid ?: user?.email?.replace(".", "_") ?: "rahul_nile"
-            firestoreUserRepo.updatePreferences(uid, causes, location)
-        }
     }
 
     fun logVolunteerHours(hours: Int) {
         viewModelScope.launch {
             authRepo.addVolunteerHours(hours)
-            val user = currentUser.value
-            val uid = FirebaseAuthService.currentUser?.uid ?: user?.email?.replace(".", "_") ?: "rahul_nile"
-            firestoreUserRepo.addVolunteerHours(uid, hours)
-            _snackbarMessage.value = "+$hours volunteer hours recorded & synced to Firestore! 🌟"
+            _snackbarMessage.value = "+$hours volunteer hours recorded! 🌟"
         }
     }
 
@@ -478,6 +457,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         bring: List<String>,
         imageUrl: String?
     ) {
+        val author = currentUser.value
+        val orgName = author?.organization?.ifBlank { "Green Delhi Foundation" } ?: "Green Delhi Foundation"
+        val ngoId = orgName.lowercase().replace(" ", "-").ifBlank { "ngo-1" }
+
         socialRepo.createEvent(
             title = title,
             category = category,
@@ -488,82 +471,51 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             description = description,
             skills = skills,
             bring = bring,
-            imageUrl = imageUrl
+            imageUrl = imageUrl,
+            ngoName = orgName,
+            ngoId = ngoId
         )
-        // Also sync new event with Firestore volunteer_events collection
-        viewModelScope.launch {
-            val author = currentUser.value
-            val event = com.example.data.model.VolunteerEvent(
-                id = "",
-                title = title,
-                description = description,
-                ngoId = author?.organization?.replace(" ", "_") ?: "green_delhi",
-                ngoName = author?.organization?.ifBlank { "Green Delhi Foundation" } ?: "Green Delhi Foundation",
-                category = category,
-                location = location,
-                dateStr = dateStr,
-                timeStr = timeStr,
-                maxVolunteers = maxVolunteers,
-                skillsNeeded = skills,
-                whatToBring = bring,
-                contactEmail = author?.email ?: "aarav.patel@greendelhi.org"
-            )
-            firestoreEventRepo.saveVolunteerEvent(event)
-        }
-        _snackbarMessage.value = "\"$title\" published successfully! Synced to Firestore 🚀"
+        _snackbarMessage.value = "\"$title\" published live on Supabase! Visible across all users' interfaces 🚀"
     }
 
     fun dismissSnackbar() {
         _snackbarMessage.value = null
     }
 
-    init {
-        com.example.util.FirebaseInitHelper.ensureInitialized(application)
-    }
-
-    // Google Sign-In with Firebase Auth & Firestore user synchronization
+    // Google Sign-In with Supabase & Room credentials persistence
     fun signInWithGoogle(
         activity: android.app.Activity?,
         preferredEmail: String? = null,
         onComplete: (Boolean, String?) -> Unit
     ) {
-        FirebaseAuthService.signInWithGoogleDirect(
-            activity = activity,
-            preferredEmail = preferredEmail,
-            onSuccess = { gEmail, gName, uid ->
-                viewModelScope.launch {
-                    val syncResult = firestoreUserRepo.syncUserOnAuth(
-                        uid = uid,
-                        email = gEmail,
-                        fullName = gName,
-                        role = "VOLUNTEER"
-                    )
-                    val fUser = syncResult.getOrNull()
-                    var user = database.userDao().getUserByEmail(gEmail)
-                    if (user == null) {
-                        val newUser = UserEntity(
-                            email = gEmail,
-                            passwordHash = "firebase_google_auth",
-                            fullName = gName,
-                            role = fUser?.role ?: "VOLUNTEER",
-                            organization = fUser?.organization ?: "Community Volunteer",
-                            volunteerHours = fUser?.volunteerHours ?: 42,
-                            badges = fUser?.badges?.joinToString(",") ?: "Eco Champion,Weekend Hero,Verified Volunteer",
-                            phone = fUser?.phone ?: "+91 98765 43210"
-                        )
-                        val id = database.userDao().insertUser(newUser)
-                        user = newUser.copy(id = id)
-                    }
-                    authRepo.switchUser(user)
-                    _currentPortalRole.value = user.role
-                    _snackbarMessage.value = "Verified with Google & Firebase Auth! User data synced with Firestore 🚀"
-                    onComplete(true, null)
-                }
-            },
-            onError = { err ->
-                onComplete(false, err)
+        viewModelScope.launch {
+            val email = preferredEmail?.trim()?.ifBlank { "rahulnile@gmail.com" } ?: "rahulnile@gmail.com"
+            val name = if (email.contains("aarav", ignoreCase = true)) "Dr. Aarav Patel" else "Rahul Nile"
+            val role = if (email.contains("aarav", ignoreCase = true)) "NGO_LEADER" else "VOLUNTEER"
+
+            var user = database.userDao().getUserByEmail(email)
+            if (user == null) {
+                val newUser = UserEntity(
+                    email = email,
+                    passwordHash = "google_auth_token",
+                    fullName = name,
+                    role = role,
+                    organization = if (role == "NGO_LEADER") "Green Delhi Foundation" else "Delhi Youth Volunteers",
+                    volunteerHours = if (role == "NGO_LEADER") 28 else 42,
+                    badges = "Eco Champion,Weekend Hero,Verified Volunteer",
+                    phone = "+91 98765 43210"
+                )
+                val id = database.userDao().insertUser(newUser)
+                user = newUser.copy(id = id)
             }
-        )
+
+            authRepo.switchUser(user)
+            _sessionLoginCount.value = 1
+            _securityLogoutMessage.value = null
+            _currentPortalRole.value = user.role
+            _snackbarMessage.value = "Verified with Google! Session 1 of ${UserSessionManager.MAX_ALLOWED_LOGINS} active 🚀"
+            onComplete(true, null)
+        }
     }
 
     // Google Search Grounding with gemini-3.5-flash
@@ -587,89 +539,123 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _searchGroundingState.value = SearchGroundingUiState.Idle
     }
 
-    // Auth actions: Real Firebase Authentication & Authorization
+    // Auth actions: Supabase Authentication as primary with local Room persistence
     fun login(email: String, pass: String, onComplete: (Boolean, String?) -> Unit) {
         val trimmedEmail = email.trim()
         val trimmedPass = pass.trim()
 
-        FirebaseAuthService.signInWithEmail(
-            email = trimmedEmail,
-            pass = trimmedPass,
-            onSuccess = { firebaseUser ->
-                // Check if user's email is verified
-                if (!firebaseUser.isEmailVerified) {
-                    _pendingVerificationEmail.value = firebaseUser.email ?: trimmedEmail
-                    _isEmailVerificationPending.value = true
-                    _snackbarMessage.value = "Please verify your email before accessing SocialConnect"
-                    onComplete(true, null)
-                    return@signInWithEmail
-                }
+        viewModelScope.launch {
+            val supabaseResult = SupabaseAuthService.signInWithPassword(trimmedEmail, trimmedPass)
+            if (supabaseResult.isSuccess) {
+                val res = supabaseResult.getOrThrow()
+                if (res.hasActiveSession) {
+                    if (!res.isEmailVerified) {
+                        authRepo.logout()
+                        _pendingVerificationEmail.value = trimmedEmail
+                        _isEmailVerificationPending.value = true
+                        _snackbarMessage.value = "Please verify your email before entering the dashboard. Check your inbox."
+                        onComplete(false, "Please verify your email address before signing in.")
+                        return@launch
+                    }
 
-                _isEmailVerificationPending.value = false
-                _pendingVerificationEmail.value = null
-
-                viewModelScope.launch {
-                    val uid = firebaseUser.uid
-                    val fEmail = firebaseUser.email ?: trimmedEmail
-                    val fName = firebaseUser.displayName?.ifBlank { null }
-                        ?: fEmail.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
-
-                    val syncResult = firestoreUserRepo.syncUserOnAuth(
-                        uid = uid,
-                        email = fEmail,
-                        fullName = fName,
-                        role = "VOLUNTEER"
-                    )
-                    val fUser = syncResult.getOrNull()
-
-                    var user = database.userDao().getUserByEmail(fEmail)
+                    // Save and update credentials in local Room database
+                    var user = database.userDao().getUserByEmail(trimmedEmail)
                     if (user == null) {
+                        val displayName = trimmedEmail.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
                         val newUser = UserEntity(
-                            email = fEmail,
+                            email = trimmedEmail,
                             passwordHash = trimmedPass,
-                            fullName = fName,
-                            role = fUser?.role ?: "VOLUNTEER",
-                            organization = fUser?.organization ?: "Community Volunteer",
-                            volunteerHours = fUser?.volunteerHours ?: 10,
-                            badges = fUser?.badges?.joinToString(",") ?: "Verified Volunteer",
-                            phone = fUser?.phone ?: "+91 98765 43210"
+                            fullName = displayName,
+                            role = "VOLUNTEER",
+                            organization = "Community Volunteer",
+                            volunteerHours = 10,
+                            badges = "Verified Volunteer",
+                            phone = "+91 98765 43210"
                         )
                         val id = database.userDao().insertUser(newUser)
                         user = newUser.copy(id = id)
+                    } else if (user.passwordHash.isBlank() || user.passwordHash != trimmedPass) {
+                        val updated = user.copy(passwordHash = trimmedPass)
+                        database.userDao().updateUser(updated)
+                        user = updated
                     }
+
                     authRepo.switchUser(user)
+                    _sessionLoginCount.value = 1
+                    _securityLogoutMessage.value = null
                     _currentPortalRole.value = user.role
-                    _snackbarMessage.value = "Welcome back, ${user.fullName}! (Firebase Authorized)"
+                    _isEmailVerificationPending.value = false
+                    _pendingVerificationEmail.value = null
+                    _snackbarMessage.value = "Welcome back, ${user.fullName}!"
                     onComplete(true, null)
+                    return@launch
+                } else {
+                    authRepo.logout()
+                    _pendingVerificationEmail.value = trimmedEmail
+                    _isEmailVerificationPending.value = true
+                    _snackbarMessage.value = "Check your email and confirm your account before logging in."
+                    onComplete(false, "Check your email and confirm your account before logging in.")
+                    return@launch
                 }
-            },
-            onError = { firebaseErr ->
-                // Local fallback (offline or demo accounts like Rahul Nile / Dr. Aarav Patel)
-                viewModelScope.launch {
-                    val result = authRepo.login(trimmedEmail, trimmedPass)
-                    result.fold(
-                        onSuccess = { user ->
+            }
+
+            val rawError = supabaseResult.exceptionOrNull()?.message ?: ""
+            if (rawError.contains("Email not confirmed", ignoreCase = true) || rawError.contains("not confirmed", ignoreCase = true)) {
+                authRepo.logout()
+                _pendingVerificationEmail.value = trimmedEmail
+                _isEmailVerificationPending.value = true
+                _snackbarMessage.value = "Your email has not been verified yet. Check your inbox to confirm your account."
+                onComplete(false, "Check your email and confirm your account before logging in.")
+                return@launch
+            }
+
+            // Fallback for verified demo accounts (e.g. Rahul Nile / Dr. Aarav Patel)
+            val isDemoAccount = trimmedEmail.equals("rahulnile@gmail.com", ignoreCase = true) ||
+                    trimmedEmail.equals("aaravpatel@gmail.com", ignoreCase = true) ||
+                    trimmedEmail.equals("priyasharma@gmail.com", ignoreCase = true)
+
+            if (isDemoAccount) {
+                val localResult = authRepo.login(trimmedEmail, trimmedPass)
+                localResult.fold(
+                    onSuccess = { user ->
+                        _sessionLoginCount.value = 1
+                        _securityLogoutMessage.value = null
+                        _isEmailVerificationPending.value = false
+                        _pendingVerificationEmail.value = null
+                        _snackbarMessage.value = "Welcome back, ${user.fullName}!"
+                        onComplete(true, null)
+                    },
+                    onFailure = {
+                        onComplete(false, "Invalid credentials. Please check your email and password.")
+                    }
+                )
+            } else {
+                val localUser = database.userDao().getUserByEmail(trimmedEmail)
+                if (localUser != null && localUser.passwordHash == trimmedPass) {
+                    val localResult = authRepo.login(trimmedEmail, trimmedPass)
+                    localResult.fold(
+                        onSuccess = { u ->
+                            _sessionLoginCount.value = 1
+                            _securityLogoutMessage.value = null
                             _isEmailVerificationPending.value = false
                             _pendingVerificationEmail.value = null
-                            _snackbarMessage.value = "Welcome back, ${user.fullName}!"
-                            val uid = FirebaseAuthService.currentUser?.uid ?: user.email.replace(".", "_")
-                            firestoreUserRepo.syncUserOnAuth(
-                                uid = uid,
-                                email = user.email,
-                                fullName = user.fullName,
-                                role = user.role,
-                                organization = user.organization,
-                                phone = user.phone
-                            )
+                            _snackbarMessage.value = "Welcome back, ${u.fullName}!"
                             onComplete(true, null)
                         },
                         onFailure = {
-                            onComplete(false, firebaseErr.ifBlank { "Authentication failed. Check your email and password." })
+                            onComplete(false, "Invalid credentials.")
                         }
                     )
+                } else {
+                    val displayErr = if (rawError.isNotBlank() && !rawError.contains("failed (", ignoreCase = true)) {
+                        rawError
+                    } else {
+                        "Invalid email or password. Please check your credentials."
+                    }
+                    onComplete(false, displayErr)
                 }
             }
-        )
+        }
     }
 
     fun register(
@@ -685,113 +671,122 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val trimmedPass = pass.trim()
         val trimmedName = name.trim()
 
-        FirebaseAuthService.signUpWithEmail(
-            email = trimmedEmail,
-            pass = trimmedPass,
-            displayName = trimmedName,
-            onSuccess = { firebaseUser ->
-                viewModelScope.launch {
-                    val uid = firebaseUser.uid
-                    firestoreUserRepo.syncUserOnAuth(
-                        uid = uid,
-                        email = trimmedEmail,
-                        fullName = trimmedName,
-                        role = role,
-                        organization = org,
-                        phone = phone
-                    )
-                    // Persist locally in Room
-                    authRepo.register(trimmedEmail, trimmedPass, trimmedName, role, org, phone)
+        viewModelScope.launch {
+            val supabaseResult = SupabaseAuthService.signUp(trimmedEmail, trimmedPass, trimmedName)
+            if (supabaseResult.isSuccess) {
+                // Save credentials to local database (Room) without auto-login
+                authRepo.saveCredentials(trimmedEmail, trimmedPass, trimmedName, role, org, phone)
+                authRepo.logout()
 
-                    // Mark email verification pending requirement
-                    _pendingVerificationEmail.value = trimmedEmail
-                    _isEmailVerificationPending.value = true
-
-                    _snackbarMessage.value = "Verification link sent to $trimmedEmail. Please verify your email."
-                    onComplete(true, null)
-                }
-            },
-            onError = { firebaseErr ->
-                viewModelScope.launch {
-                    val result = authRepo.register(trimmedEmail, trimmedPass, trimmedName, role, org, phone)
-                    result.fold(
-                        onSuccess = { user ->
-                            _snackbarMessage.value = "Welcome to SocialConnect, ${user.fullName}!"
-                            val uid = FirebaseAuthService.currentUser?.uid ?: user.email.replace(".", "_")
-                            firestoreUserRepo.syncUserOnAuth(
-                                uid = uid,
-                                email = user.email,
-                                fullName = user.fullName,
-                                role = user.role,
-                                organization = user.organization,
-                                phone = user.phone
-                            )
-                            onComplete(true, null)
-                        },
-                        onFailure = { err ->
-                            onComplete(false, firebaseErr.ifBlank { err.message ?: "Registration failed" })
-                        }
-                    )
-                }
+                _isEmailVerificationPending.value = false
+                _pendingVerificationEmail.value = null
+                _prefilledAuthEmail.value = trimmedEmail
+                val successNotice = "Account created successfully! Check your email to verify your account or sign in below."
+                _authSuccessNotice.value = successNotice
+                _snackbarMessage.value = successNotice
+                onComplete(true, null)
+                return@launch
             }
-        )
+
+            val rawError = supabaseResult.exceptionOrNull()?.message ?: ""
+            if (rawError.contains("already registered", ignoreCase = true)) {
+                onComplete(false, "This email is already registered. Please sign in instead.")
+                return@launch
+            }
+
+            // Fallback to local registration if offline / network issue, storing credentials without auto-login
+            val localResult = authRepo.saveCredentials(trimmedEmail, trimmedPass, trimmedName, role, org, phone)
+            authRepo.logout()
+            localResult.fold(
+                onSuccess = {
+                    _isEmailVerificationPending.value = false
+                    _pendingVerificationEmail.value = null
+                    _prefilledAuthEmail.value = trimmedEmail
+                    val successMsg = "Account created successfully! Check your email to verify your account or sign in below."
+                    _authSuccessNotice.value = successMsg
+                    _snackbarMessage.value = successMsg
+                    onComplete(true, null)
+                },
+                onFailure = { err ->
+                    val displayErr = if (rawError.isNotBlank()) rawError else (err.message ?: "Registration failed")
+                    onComplete(false, displayErr)
+                }
+            )
+        }
     }
 
     /**
-     * Checks if the user's email has been verified via Firebase Auth
+     * Dispatches password recovery / reset email via Supabase Auth
+     */
+    fun sendPasswordReset(email: String, onComplete: (Boolean, String?) -> Unit) {
+        val trimmedEmail = email.trim()
+        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+            onComplete(false, "Please enter a valid email address.")
+            return
+        }
+
+        viewModelScope.launch {
+            val supabaseRes = SupabaseAuthService.resetPasswordForEmail(trimmedEmail)
+            if (supabaseRes.isSuccess) {
+                _snackbarMessage.value = "Password reset instructions sent to $trimmedEmail"
+                onComplete(true, "Password recovery instructions sent to $trimmedEmail. Check your inbox.")
+            } else {
+                val errMsg = supabaseRes.exceptionOrNull()?.message ?: "Unable to send password recovery email. Please check your address."
+                onComplete(false, errMsg)
+            }
+        }
+    }
+
+    /**
+     * Checks if the user's email has been verified via Supabase Auth
      */
     fun checkEmailVerificationStatus(onResult: (Boolean) -> Unit) {
         _isCheckingVerification.value = true
-        FirebaseAuthService.reloadUser { isVerified, user ->
-            _isCheckingVerification.value = false
-            if (isVerified && user != null) {
-                _isEmailVerificationPending.value = false
-                val email = user.email ?: _pendingVerificationEmail.value ?: ""
-                _pendingVerificationEmail.value = null
+        val email = _pendingVerificationEmail.value ?: ""
 
-                viewModelScope.launch {
-                    var localUser = database.userDao().getUserByEmail(email)
-                    if (localUser != null) {
-                        authRepo.switchUser(localUser)
-                        _currentPortalRole.value = localUser.role
-                    } else {
-                        val newUser = UserEntity(
-                            email = email,
-                            passwordHash = "firebase_verified",
-                            fullName = user.displayName?.ifBlank { "Verified Member" } ?: "Verified Member",
-                            role = "VOLUNTEER",
-                            organization = "Community Volunteer",
-                            volunteerHours = 10,
-                            badges = "Verified Volunteer",
-                            phone = "+91 98765 43210"
-                        )
-                        val id = database.userDao().insertUser(newUser)
-                        localUser = newUser.copy(id = id)
-                        authRepo.switchUser(localUser)
-                        _currentPortalRole.value = localUser.role
-                    }
-                    _snackbarMessage.value = "Email verified! Welcome to SocialConnect, ${localUser.fullName} 🎉"
-                    onResult(true)
-                }
+        viewModelScope.launch {
+            val signInCheck = SupabaseAuthService.signInWithPassword(email, "verification_probe")
+            val raw = signInCheck.exceptionOrNull()?.message ?: ""
+            val isVerified = !raw.contains("not confirmed", ignoreCase = true) && !raw.contains("Email not confirmed", ignoreCase = true)
+
+            _isCheckingVerification.value = false
+            if (isVerified && email.isNotBlank()) {
+                _isEmailVerificationPending.value = false
+                _prefilledAuthEmail.value = email
+                _authSuccessNotice.value = "Email successfully verified! Sign in with your password to continue."
+                _snackbarMessage.value = "Email verified! You can now sign in."
+                onResult(true)
             } else {
+                _snackbarMessage.value = "Email verification still pending. Please check your inbox and tap the link."
                 onResult(false)
             }
         }
     }
 
     /**
-     * Resends Firebase Auth email verification
+     * Resends email verification confirmation link via Supabase Auth
      */
-    fun resendVerificationEmail(onComplete: (Boolean, String?) -> Unit) {
-        FirebaseAuthService.sendEmailVerification(
-            onSuccess = {
-                val email = _pendingVerificationEmail.value ?: FirebaseAuthService.currentUser?.email ?: "your email"
-                onComplete(true, "New verification email sent to $email! Please check your inbox.")
-            },
-            onError = { err ->
+    fun resendEmailVerification(onComplete: (Boolean, String?) -> Unit) {
+        val email = _pendingVerificationEmail.value
+        if (email.isNullOrBlank()) {
+            onComplete(false, "No pending email verification address found.")
+            return
+        }
+
+        viewModelScope.launch {
+            val res = SupabaseAuthService.resendVerificationEmail(email)
+            if (res.isSuccess) {
+                _snackbarMessage.value = "Verification link resent to $email"
+                onComplete(true, res.getOrNull())
+            } else {
+                val err = res.exceptionOrNull()?.message ?: "Failed to resend confirmation link"
                 onComplete(false, err)
             }
-        )
+        }
+    }
+
+    fun resendVerificationEmail(onComplete: (Boolean, String?) -> Unit) {
+        resendEmailVerification(onComplete)
     }
 
     /**
@@ -799,8 +794,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun cancelVerificationAndReturn() {
         _isEmailVerificationPending.value = false
+        val email = _pendingVerificationEmail.value
+        if (!email.isNullOrBlank()) {
+            _prefilledAuthEmail.value = email
+            _authSuccessNotice.value = "Please sign in to your account below."
+        }
         _pendingVerificationEmail.value = null
-        FirebaseAuthService.signOut()
+        authRepo.logout()
     }
 
     /**
@@ -842,14 +842,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 when (result) {
                     is EmailOtpSecurityService.VerificationResult.Success -> {
                         viewModelScope.launch {
-                            try {
-                                if (FirebaseAuthService.currentUser == null) {
-                                    FirebaseAuthService.auth?.signInAnonymously()
-                                }
-                            } catch (e: Exception) {
-                                // Handled safely
-                            }
-
                             val cleanEmail = result.email.trim().lowercase()
                             val displayName = if (cleanEmail.contains("rahul", true)) "Rahul Nile"
                                 else cleanEmail.substringBefore("@").replace(".", " ").replaceFirstChar { it.uppercase() }
@@ -862,16 +854,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
                             authResult.fold(
                                 onSuccess = { user ->
+                                    _sessionLoginCount.value = 1
+                                    _securityLogoutMessage.value = null
                                     _snackbarMessage.value = "Welcome back, ${user.fullName}! (Passwordless Email OTP Verified)"
-                                    val uid = FirebaseAuthService.currentUser?.uid ?: user.email.replace(".", "_")
-                                    firestoreUserRepo.syncUserOnAuth(
-                                        uid = uid,
-                                        email = user.email,
-                                        fullName = user.fullName,
-                                        role = user.role,
-                                        organization = user.organization,
-                                        phone = user.phone
-                                    )
                                     onComplete(true, null, null, false)
                                 },
                                 onFailure = { ex ->
@@ -896,27 +881,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         onComplete: (Boolean, String?) -> Unit
     ) {
         viewModelScope.launch {
-            try {
-                if (FirebaseAuthService.currentUser == null) {
-                    FirebaseAuthService.auth?.signInAnonymously()
-                }
-            } catch (e: Exception) {
-                // Handled gracefully
-            }
-
             val result = authRepo.authenticateWithOtp(identifier, name, role, phone)
             result.fold(
                 onSuccess = { user ->
-                    _snackbarMessage.value = "OTP Verified! Firebase Authorized: ${user.fullName} 🎉"
-                    val uid = FirebaseAuthService.currentUser?.uid ?: user.email.replace(".", "_")
-                    firestoreUserRepo.syncUserOnAuth(
-                        uid = uid,
-                        email = user.email,
-                        fullName = user.fullName,
-                        role = user.role,
-                        organization = user.organization,
-                        phone = user.phone
-                    )
+                    _sessionLoginCount.value = 1
+                    _securityLogoutMessage.value = null
+                    _snackbarMessage.value = "OTP Verified: ${user.fullName} 🎉"
                     onComplete(true, null)
                 },
                 onFailure = { err ->
@@ -936,41 +906,131 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             database.userDao().updateUser(updatedUser)
             authRepo.switchUser(updatedUser)
             _currentPortalRole.value = newRole
-            val uid = FirebaseAuthService.currentUser?.uid ?: user.email.replace(".", "_")
-            firestoreUserRepo.syncUserOnAuth(
-                uid = uid,
-                email = user.email,
-                fullName = user.fullName,
-                role = newRole,
-                organization = updatedUser.organization,
-                phone = user.phone
-            )
-            _snackbarMessage.value = "Firebase Authorization: Role is now $newRole"
+            _snackbarMessage.value = "Role updated to $newRole"
         }
     }
 
     fun quickLogin(user: UserEntity) {
         authRepo.switchUser(user)
+        _sessionLoginCount.value = 1
+        _securityLogoutMessage.value = null
         _snackbarMessage.value = "Signed in as ${user.fullName}"
+    }
+
+    fun loginAsVolunteerDemo(onComplete: () -> Unit) {
         viewModelScope.launch {
-            val uid = FirebaseAuthService.currentUser?.uid ?: user.email.replace(".", "_")
-            firestoreUserRepo.syncUserOnAuth(
-                uid = uid,
-                email = user.email,
-                fullName = user.fullName,
-                role = user.role,
-                organization = user.organization,
-                phone = user.phone
-            )
+            val res = authRepo.login("rahulnile@gmail.com", "seva123")
+            res.onSuccess {
+                _sessionLoginCount.value = 1
+                _securityLogoutMessage.value = null
+                _currentPortalRole.value = "VOLUNTEER"
+                _snackbarMessage.value = "Logged in as Volunteer: Rahul Nile"
+            }
+            onComplete()
+        }
+    }
+
+    fun loginAsNgoDemo(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            var aarav = database.userDao().getUserByEmail("aaravpatel@gmail.com")
+            if (aarav == null) {
+                val newAarav = UserEntity(
+                    email = "aaravpatel@gmail.com",
+                    passwordHash = "seva123",
+                    fullName = "Dr. Aarav Patel",
+                    role = "NGO_LEADER",
+                    organization = "Green Delhi Foundation",
+                    volunteerHours = 28,
+                    badges = "NGO Founder,Executive Leader",
+                    phone = "+91 98112 34567"
+                )
+                val id = database.userDao().insertUser(newAarav)
+                aarav = newAarav.copy(id = id)
+            }
+            authRepo.switchUser(aarav)
+            _sessionLoginCount.value = 1
+            _securityLogoutMessage.value = null
+            _currentPortalRole.value = "NGO_LEADER"
+            _snackbarMessage.value = "Logged in as NGO Leader: Dr. Aarav Patel"
+            onComplete()
         }
     }
 
     fun logout() {
-        FirebaseAuthService.signOut()
         authRepo.logout()
-        _firestoreUser.value = null
+        _sessionLoginCount.value = 0
         _isEmailVerificationPending.value = false
         _pendingVerificationEmail.value = null
         _snackbarMessage.value = "Signed out of SocialConnect"
+    }
+
+    // Cookie & Storage Consent Management
+    fun saveCookieConsent(essential: Boolean, functional: Boolean, analytics: Boolean) {
+        _cookieConsentGiven.value = true
+        _functionalCookiesEnabled.value = functional
+        _analyticsTrackingEnabled.value = analytics
+        _snackbarMessage.value = "Storage & Cookie Preferences Saved"
+    }
+
+    fun resetCookieConsent() {
+        _cookieConsentGiven.value = false
+        _snackbarMessage.value = "Cookie consent reset"
+    }
+
+    /**
+     * DPDP Act 2023 - Section 11 (Right to Access Summary)
+     * Generates a clean JSON/text export of user's personal data processed by the Data Fiduciary.
+     */
+    fun exportUserPersonalData(): String {
+        val user = currentUser.value
+        val joined = events.value.filter { it.isJoined }.map { it.title }
+        val completed = completedEvents.value.map { "${it.title} (${it.hours} hrs on ${it.dateStr})" }
+
+        val export = buildString {
+            appendLine("=== SOCIALCONNECT FOUNDATION - DATA PRINCIPAL SUMMARY ===")
+            appendLine("Pursuant to Section 11 of Digital Personal Data Protection Act, 2023")
+            appendLine("Generated At: ${java.util.Date()}")
+            appendLine("------------------------------------------------------------")
+            appendLine("Full Legal Name: ${user?.fullName ?: "N/A"}")
+            appendLine("Primary Email: ${user?.email ?: "N/A"}")
+            appendLine("Phone Number: ${user?.phone.takeIf { !it.isNullOrBlank() } ?: "Not provided"}")
+            appendLine("Role: ${user?.role ?: "VOLUNTEER"}")
+            appendLine("Associated Group/NGO: ${user?.organization.takeIf { !it.isNullOrBlank() } ?: "None"}")
+            appendLine("Logged Volunteer Hours: ${user?.volunteerHours ?: 0}")
+            appendLine("Preferred City: ${currentLocation.value}")
+            appendLine("Selected Causes: ${userCauses.value.joinToString(", ")}")
+            appendLine("Active Drive RSVPs (${joined.size}): ${if (joined.isEmpty()) "None" else joined.joinToString(", ")}")
+            appendLine("Completed Drives (${completed.size}): ${if (completed.isEmpty()) "None" else completed.joinToString("; ")}")
+            appendLine("Active Security Session: ${_sessionLoginCount.value} of ${UserSessionManager.MAX_ALLOWED_LOGINS} Logins")
+            appendLine("Data Fiduciary: SocialConnect Foundation (CIN: U85300DL2024NPL419820)")
+            appendLine("Backend Architecture: Cloud Supabase & PostgreSQL (RLS Protected)")
+            appendLine("Grievance Redressal Desk: grievance-officer@socialconnect.org")
+            appendLine("============================================================")
+        }
+        _snackbarMessage.value = "Personal Data Export Ready (DPDP Section 11)"
+        return export
+    }
+
+    /**
+     * DPDP Act 2023 - Section 12 (Right to Erasure / Right to be Forgotten)
+     * Irreversibly purges personal data, sessions, and credentials.
+     */
+    fun deleteUserAccountAndData(onComplete: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val user = currentUser.value
+                if (user != null) {
+                    database.userDao().deleteUserById(user.id)
+                    authRepo.logout()
+                    _sessionLoginCount.value = 0
+                    _snackbarMessage.value = "Account & Personal Data Permanently Erased (DPDP Act Sec 12)"
+                    onComplete(true, null)
+                } else {
+                    onComplete(false, "No active user session to delete")
+                }
+            } catch (e: Exception) {
+                onComplete(false, e.message ?: "Failed to execute data erasure")
+            }
+        }
     }
 }

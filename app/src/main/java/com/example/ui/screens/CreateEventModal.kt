@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -87,6 +89,7 @@ fun CreateEventModal(
     var skillsStr by remember { mutableStateOf("Coordination, Enthusiasm") }
     var bringStr by remember { mutableStateOf("Water bottle, Comfortable clothes") }
     var imageUrl by remember { mutableStateOf("") }
+    var formConsentChecked by remember { mutableStateOf(false) }
 
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
@@ -338,6 +341,47 @@ fun CreateEventModal(
                             )
                         }
 
+                        // Form Consent & DPDP Declaration
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, if (formConsentChecked) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { formConsentChecked = !formConsentChecked }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Checkbox(
+                                    checked = formConsentChecked,
+                                    onCheckedChange = { formConsentChecked = it },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = SocialGreen,
+                                        uncheckedColor = Color(0xFF64748B)
+                                    ),
+                                    modifier = Modifier.testTag("cb_create_event_consent")
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Column {
+                                    Text(
+                                        text = "Organizer Declaration & DPDP Data Consent",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SocialTextMain
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "I confirm this drive is an authentic, non-commercial community initiative. I agree to the Community Safety Guidelines and Terms of Service, and understand that volunteer roster details will only be processed for event coordination pursuant to India's DPDP Act 2023.",
+                                        fontSize = 10.5.sp,
+                                        color = Color(0xFF334155),
+                                        lineHeight = 14.5.sp
+                                    )
+                                }
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
@@ -384,6 +428,10 @@ fun CreateEventModal(
                                         errorMsg = "Please enter event description"
                                         return@Button
                                     }
+                                    if (!formConsentChecked) {
+                                        errorMsg = "Please check the organizer declaration & DPDP consent box"
+                                        return@Button
+                                    }
                                     val maxVol = maxVolunteersStr.toIntOrNull() ?: 30
                                     val skills = skillsStr.split(",").map { it.trim() }.filter { it.isNotBlank() }
                                     val bring = bringStr.split(",").map { it.trim() }.filter { it.isNotBlank() }
@@ -410,7 +458,8 @@ fun CreateEventModal(
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = SocialGreen,
                                     contentColor = Color.White
-                                )
+                                ),
+                                enabled = formConsentChecked
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
@@ -420,10 +469,10 @@ fun CreateEventModal(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Create Drive",
+                                    text = "Publish Volunteer Drive",
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
-                                    fontSize = 14.sp
+                                    fontSize = 13.5.sp
                                 )
                             }
                         }

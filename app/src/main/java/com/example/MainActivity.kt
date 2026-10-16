@@ -17,13 +17,11 @@ import com.example.ui.screens.EmailVerificationPendingScreen
 import com.example.ui.screens.MainAppScaffold
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AppViewModel
-import com.example.util.FirebaseInitHelper
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        FirebaseInitHelper.ensureInitialized(this)
         setContent {
             MyApplicationTheme {
                 val appViewModel: AppViewModel = viewModel()
